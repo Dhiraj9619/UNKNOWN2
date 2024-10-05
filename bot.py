@@ -28,7 +28,7 @@ def art():
     """ + Style.RESET_ALL)
 
     print(Fore.CYAN + "Major Script Edited by @Dhiraj_9619  DHEERAJ" + Style.RESET_ALL)
-    print(Fore.MAGENTA + "==================================================" + Style.RESET_ALL)
+    print(Fore.MAGENTA + "==============================================" + Style.RESET_ALL)
 
 def read_query_ids(file_path):
     with open(file_path, 'r') as file:
