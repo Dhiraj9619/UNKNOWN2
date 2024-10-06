@@ -169,7 +169,7 @@ def check_user_details(user_id, access_token, proxies=None):
 
 def perform_daily_spin(access_token, proxies=None, user_agent=None):
     log_message("Spin Game starting...", Fore.LIGHTWHITE_EX)
-    countdown_timer(2)  # Wait for 10 seconds after the "Spin Game starting..." message
+    countdown_timer(10)  # Wait for 10 seconds after the "Spin Game starting..." message
    
     url_spin = "https://major.glados.app/api/roulette/"
     headers_spin = {
@@ -220,7 +220,7 @@ def daily_hold(access_token, proxies=None, user_agent=None):
     }
     response = requests.post(url_hold, data=json.dumps(payload), headers=headers_hold, proxies=proxies)
     if response.status_code == 201:
-        time.sleep(2)
+        time.sleep(60)
     
     random_delay()
     return response
@@ -239,7 +239,7 @@ def daily_swipe(access_token, proxies=None, user_agent=None):
     }
     response = requests.post(url_swipe, data=json.dumps(payload), headers=headers_swipe, proxies=proxies)
     if response.status_code == 201:
-        time.sleep(2)
+        time.sleep(60)
     
     random_delay()
     return response
