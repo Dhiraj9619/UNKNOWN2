@@ -130,7 +130,8 @@ def login(query_id, proxies=None, user_agent=None):
             response.raise_for_status()
             return response.json()
         except (requests.exceptions.ProxyError, requests.exceptions.RequestException):
-            time.sleep(3)
+            log_retry(f"Login attempt {attempt + 1} failed for query_id {query_id}")
+            time.sleep(1)
 
     return None
 
@@ -364,8 +365,18 @@ def log_message(message, color=Fore.WHITE):
     print(f"{color + Style.BRIGHT}{message}{Style.RESET_ALL}")
 
 def log_error(error_message):
-    with open('error_log.txt', 'a') as file:
+    with open('.error_log.txt', 'a') as file:
         file.write(error_message + '\n')
+
+def log_retry(retry_message):
+    with open('.retry_log.txt', 'a') as file:
+        file.write(retry_message + '\n')
+
+def clear_error_log():
+    open('.error_log.txt', 'w').close()
+
+def clear_retry_log():
+    open('.retry_log.txt', 'w').close()
 
 def get_yes_no_input(prompt):
     while True:
@@ -395,7 +406,7 @@ def extract_browser_info(user_agent):
     match = re.search(r'(Chrome/\d+\.\d+\.\d+|Firefox/\d+\.\d+|Safari/\d+\.\d+)', user_agent)
     return match.group(0) if match else "Unknown Browser"
 
-def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_enabled, durov_choices, account_proxies, total_balance, user_agents, account_index, proxy_usage, fast_game, other_tasks_enabled):
+def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_enabled, durov_choices, account_proxies, total_balance, user_agents, account_index, proxy_usage, fast_game, other_tasks_enabled, completed_tasks):
     user_id, username = decode_query_id(query_id)
     log_message(f"--------Account no {account_index + 1}-----------", Fore.LIGHTBLUE_EX)
     log_message(f"Username: {username}", Fore.LIGHTBLUE_EX)
@@ -498,10 +509,13 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
         if other_tasks_enabled:
             excluded_tasks = {
                 "Extra Stars Purchase",
+                "Stars Purchase",
                 "Promote TON blockchain",
                 "Boost Major channel",
                 "Boost Roxman channel",
-                "Binance x Ton",
+                "Follow CATS Channel'",
+                "Follow Roxman in Telegram",
+                "Binance x TON",
                 "One-time Stars Purchase",
                 "Connect TON wallet",
                 "Play W-Coin",
@@ -522,11 +536,12 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
                             log_message(f"Skipping task '{task['title']}'", Fore.YELLOW)
                             continue
 
-                        if not task['is_completed']:
+                        if not task['is_completed'] and task['id'] not in completed_tasks:
                             retries = 0
                             while retries < 3:
                                 task_result = asyncio.run(complete_task(access_token, task_id=task['id'], task_title=task['title'], task_award=task['award'], proxies=proxy, user_agent=user_agent))
                                 if task_result:
+                                    completed_tasks.add(task['id'])
                                     break
                                 retries += 1
                                 log_error(f"Retrying... ({retries}/3) for '{task['title']}'")
@@ -590,15 +605,24 @@ def main():
                     graceful_exit()
 
         total_balance = []
+        completed_tasks = set()
 
         for index, query_id in enumerate(query_ids[starting_account:], start=starting_account):
-            process_account(query_id, proxies_list, auto_task, auto_play_game, play_durov, durov_choices, account_proxies, total_balance, user_agents, index, proxy_usage, fast_game, other_tasks_enabled)
+            process_account(query_id, proxies_list, auto_task, auto_play_game, play_durov, durov_choices, account_proxies, total_balance, user_agents, index, proxy_usage, fast_game, other_tasks_enabled, completed_tasks)
+
+            # Clear error log every two accounts
+            if (index + 1) % 2 == 0:
+                clear_error_log()
 
         if use_proxy:
             save_account_proxies(account_proxies)
 
         log_message(f"Total Balance of all accounts: {sum(total_balance)}", Fore.YELLOW)
         log_message("All accounts processed. Starting random timer for the next cycle.", Fore.CYAN)
+
+        clear_error_log()  # Clear the error log at the end
+        clear_retry_log()  # Clear the retry log at the end
+
         random_timer = random.randint(8 * 60 * 60, 9 * 60 * 60)
         countdown_timer(random_timer)
         clear_terminal()
