@@ -66,15 +66,12 @@ def check_and_correct_user_agents_format():
             log_message(f"Created {user_agents_file}. You can add your User-Agents manually.", Fore.YELLOW)
         return
     
-    # Attempt to read and validate the existing file
     try:
         with open(user_agents_file, 'r') as file:
             user_agents = json.load(file)
 
-        # Check if the loaded data is a list
         if not isinstance(user_agents, list) or any(not isinstance(agent, str) for agent in user_agents):
             log_message(f"Incorrect format in {user_agents_file}. Attempting to correct format...", Fore.RED)
-            # Attempt to correct the format by filtering out invalid entries
             user_agents = [agent for agent in user_agents if isinstance(agent, str)]
             with open(user_agents_file, 'w') as file:
                 json.dump(user_agents, file)
@@ -82,20 +79,18 @@ def check_and_correct_user_agents_format():
     
     except json.JSONDecodeError:
         log_message(f"Invalid JSON format in {user_agents_file}. Attempting to correct format...", Fore.RED)
-        # If there is a JSON decode error, reset to an empty list
         with open(user_agents_file, 'w') as file:
             json.dump([], file)
             log_message("Format corrected.", Fore.GREEN)
 
 def load_user_agents():
     user_agents_file = 'user_agents.json'
-    check_and_correct_user_agents_format()  # Ensure the format is correct
+    check_and_correct_user_agents_format()
     
-    # Load existing User-Agents from the file
     with open(user_agents_file, 'r') as file:
         user_agents = json.load(file)
 
-    return user_agents  # Return the User-Agents loaded from the file
+    return user_agents
 
 def select_random_proxy(proxies, proxy_usage):
     available_proxies = [proxy for proxy in proxies if proxy_usage[proxy['http']] < 4]
@@ -135,7 +130,7 @@ def login(query_id, proxies=None, user_agent=None):
             response.raise_for_status()
             return response.json()
         except (requests.exceptions.ProxyError, requests.exceptions.RequestException):
-            time.sleep(3)  # Wait before retrying
+            time.sleep(3)
 
     return None
 
@@ -161,16 +156,15 @@ def check_user_details(user_id, access_token, proxies=None):
         return rating
     
     except requests.exceptions.HTTPError as http_err:
-        log_message(f"HTTP error occurred: {http_err}", Fore.RED)
+        log_error(f"HTTP error occurred: {http_err}")
     except Exception as err:
-        log_message(f"Other error occurred: {err}", Fore.RED)
+        log_error(f"Other error occurred: {err}")
 
     return None
 
 def perform_daily_spin(access_token, proxies=None, user_agent=None, fast_game=False):
-    log_message("Spin Game starting...", Fore.LIGHTWHITE_EX)
     if not fast_game:
-        countdown_timer(10)  # Wait for 10 seconds after the "Spin Game starting..." message
+        countdown_timer(10)
    
     url_spin = "https://major.glados.app/api/roulette/"
     headers_spin = {
@@ -185,14 +179,13 @@ def perform_daily_spin(access_token, proxies=None, user_agent=None, fast_game=Fa
     if response.status_code == 201:
         spin_data = response.json()
         rating_award = spin_data.get("rating_award")
-        log_message(f"Daily Spin Claim Successful", Fore.GREEN)
         log_message(f"Daily Spin Reward: {rating_award}", Fore.GREEN)
     elif response.status_code == 400:
         log_message("Daily Spin Already Claimed", Fore.RED)
     else:
-        log_message(f"Failed to claim Daily Spin, status code: {response.status_code}", Fore.RED)
+        log_error(f"Failed to claim Daily Spin, status code: {response.status_code}")
 
-    random_delay()  # Keep random delay
+    random_delay()
     return response
 
 def perform_daily(access_token, proxies=None, user_agent=None):
@@ -208,7 +201,6 @@ def perform_daily(access_token, proxies=None, user_agent=None):
     return response
 
 def daily_hold(access_token, proxies=None, user_agent=None, fast_game=False):
-    log_message("Hold Game completing...", Fore.LIGHTWHITE_EX)
     coins = random.randint(900, 950)
     payload = {"coins": coins} 
     url_hold = "https://major.glados.app/api/bonuses/coins/"
@@ -221,13 +213,12 @@ def daily_hold(access_token, proxies=None, user_agent=None, fast_game=False):
     }
     response = requests.post(url_hold, data=json.dumps(payload), headers=headers_hold, proxies=proxies)
     if response.status_code == 201 and not fast_game:
-        time.sleep(60)  # Skip this delay if fast_game is True
+        time.sleep(60)
     
-    random_delay()  # Keep random delay
+    random_delay()
     return response
 
 def daily_swipe(access_token, proxies=None, user_agent=None, fast_game=False):
-    log_message("Swipe Game completing...", Fore.LIGHTWHITE_EX)
     coins = random.randint(1000, 1300)
     payload = {"coins": coins} 
     url_swipe = "https://major.glados.app/api/swipe_coin/"
@@ -240,9 +231,9 @@ def daily_swipe(access_token, proxies=None, user_agent=None, fast_game=False):
     }
     response = requests.post(url_swipe, data=json.dumps(payload), headers=headers_swipe, proxies=proxies)
     if response.status_code == 201 and not fast_game:
-        time.sleep(60)  # Skip this delay if fast_game is True
+        time.sleep(60)
     
-    random_delay()  # Keep random delay
+    random_delay()
     return response
 
 async def fetch_tasks(token, is_daily, proxies=None, user_agent=None):
@@ -257,15 +248,15 @@ async def fetch_tasks(token, is_daily, proxies=None, user_agent=None):
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
             async with session.get(url=url, headers=headers, proxy=proxies.get('http') if proxies else None) as response:
                 if response.status in [500, 520]:
-                    log_message("[ Server Major Down ]", Fore.RED)
+                    log_error("[ Server Major Down ]")
                     return None
                 response.raise_for_status()
                 return await response.json()
     except aiohttp.ClientResponseError as e:
-        log_message(f"[ An HTTP Error Occurred While Fetching Tasks: {str(e.message)} ]", Fore.RED)
+        log_error(f"[ An HTTP Error Occurred While Fetching Tasks: {str(e.message)} ]")
         return None
     except (Exception, aiohttp.ContentTypeError) as e:
-        log_message(f"[ An Unexpected Error Occurred While Fetching Tasks: {str(e)} ]", Fore.RED)
+        log_error(f"[ An Unexpected Error Occurred While Fetching Tasks: {str(e)} ]")
 
 async def complete_task(token, task_id, task_title, task_award, proxies=None, user_agent=None):
     url = 'https://major.bot/api/tasks/'
@@ -282,15 +273,15 @@ async def complete_task(token, task_id, task_title, task_award, proxies=None, us
                 if response.status == 400:
                     return
                 elif response.status in [500, 520]:
-                    log_message("[ Server Major Down ]", Fore.RED)
+                    log_error("[ Server Major Down ]")
                 response.raise_for_status()
                 complete_task = await response.json()
                 if complete_task['is_completed']:
                     log_message(f"[ Got {task_award} From {task_title} ]", Fore.GREEN)
     except aiohttp.ClientResponseError as e:
-        log_message(f"[ An HTTP Error Occurred While Completing Tasks: {str(e.message)} ]", Fore.RED)
+        log_error(f"[ An HTTP Error Occurred While Completing Tasks: {str(e.message)} ]")
     except (Exception, aiohttp.ContentTypeError) as e:
-        log_message(f"[ An Unexpected Error Occurred While Completing Tasks: {str(e)} ]", Fore.RED)
+        log_error(f"[ An Unexpected Error Occurred While Completing Tasks: {str(e)} ]")
 
 def do_task(token, task_id, task_name, proxies=None, user_agent=None):
     url = "https://major.bot/api/tasks/"
@@ -323,10 +314,10 @@ def do_task(token, task_id, task_name, proxies=None, user_agent=None):
             log_message(f"Task '{task_name}' already completed", Fore.RED)
             return True
         else:
-            log_message(f"Failed to complete task '{task_name}', status code: {response.status_code}", Fore.RED)
+            log_error(f"Failed to complete task '{task_name}', status code: {response.status_code}")
             return False
     except requests.exceptions.RequestException as e:
-        log_message(f"Error occurred while completing task '{task_name}': {e}", Fore.RED)
+        log_error(f"Error occurred while completing task '{task_name}': {e}")
         return False
 
 def durov(access_token, c_1=None, c_2=None, c_3=None, c_4=None, proxies=None, user_agent=None):
@@ -372,6 +363,10 @@ def graceful_exit():
 def log_message(message, color=Fore.WHITE):
     print(f"{color + Style.BRIGHT}{message}{Style.RESET_ALL}")
 
+def log_error(error_message):
+    with open('error_log.txt', 'a') as file:
+        file.write(error_message + '\n')
+
 def get_yes_no_input(prompt):
     while True:
         try:
@@ -388,7 +383,7 @@ def get_starting_account_number(total_accounts):
         try:
             start_number = int(input(f"Enter the starting account number (1 to {total_accounts}): ").strip())
             if 1 <= start_number <= total_accounts:
-                return start_number - 1  # Convert to zero-based index
+                return start_number - 1
             else:
                 print(f"Please enter a number between 1 and {total_accounts}.")
         except ValueError:
@@ -403,14 +398,14 @@ def extract_browser_info(user_agent):
 def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_enabled, durov_choices, account_proxies, total_balance, user_agents, account_index, proxy_usage, fast_game, other_tasks_enabled):
     user_id, username = decode_query_id(query_id)
     log_message(f"--------Account no {account_index + 1}-----------", Fore.LIGHTBLUE_EX)
+    log_message(f"Username: {username}", Fore.LIGHTBLUE_EX)
     
-    # Print the browser name and version in pink color
     user_agent = user_agents[-1] if user_agents else "Mozilla/5.0"
     browser_info = extract_browser_info(user_agent)
     log_message(f"Browser: {browser_info}", Fore.MAGENTA)
 
     if user_id is None:
-        log_message(f"Failed to decode user ID for account {username}. Skipping...", Fore.RED)
+        log_error(f"Failed to decode user ID for account {username}. Skipping...")
         return
 
     proxy = account_proxies.get(query_id)
@@ -423,7 +418,7 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
 
         proxy = {
             'http': proxy['http'],
-            'https': proxy['http']  # Use the HTTP proxy for HTTPS as well
+            'https': proxy['http']
         }
     else:
         proxy = None
@@ -431,20 +426,9 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
     login_data = login(query_id, proxies=proxy, user_agent=user_agent)
 
     if not login_data:
-        if proxies_list:
-            proxy = bind_working_proxy(proxies_list, account_proxies, query_id, proxy_usage)
-            if proxy:
-                proxy = {
-                    'http': proxy['http'],
-                    'https': proxy['http']
-                }
-                login_data = login(query_id, proxies=proxy, user_agent=user_agent)
-    
-    if not login_data:
-        log_message(f"Login failed after retries.", Fore.RED)
+        log_error(f"Login failed after retries for {username}.")
         return
 
-    # Bind the working proxy for future use
     if proxy:
         account_proxies[query_id] = proxy
 
@@ -453,10 +437,9 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
 
     if initial_balance is not None:
         log_message(f"Balance: {initial_balance}", Fore.GREEN)
-        total_balance.append(initial_balance)  # Add to total balance
+        total_balance.append(initial_balance)
 
     if access_token:
-        # Claim Daily Bonus first
         response_daily = perform_daily(access_token, proxies=proxy, user_agent=user_agent)
         if response_daily.status_code == 200:
             daily_data = response_daily.json()
@@ -465,7 +448,6 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
             else:
                 log_message("Daily Bonus Already Claimed", Fore.RED)
             
-            # Add random 2-3 second delay after daily bonus claim
             time.sleep(random.randint(2, 3))
 
         if durov_enabled:
@@ -507,33 +489,59 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
                                 log_message("Please join Major TG first", Fore.RED)
                                 time.sleep(1)
                                 retries += 1
-                                log_message(f"Retrying... ({retries}/3) for '{task_name}'", Fore.YELLOW)
+                                log_error(f"Retrying... ({retries}/3) for '{task_name}'")
                                 time.sleep(0.5)
                                 clear_terminal()
                                 if retries == 3:
-                                    log_message(f"Failed to complete '{task_name}' after 3 attempts.", Fore.RED)
+                                    log_error(f"Failed to complete '{task_name}' after 3 attempts.")
 
-        # New section for other tasks
         if other_tasks_enabled:
+            excluded_tasks = {
+                "Extra Stars Purchase",
+                "Promote TON blockchain",
+                "Boost Major channel",
+                "Boost Roxman channel",
+                "Binance x Ton",
+                "One-time Stars Purchase",
+                "Connect TON wallet",
+                "Play W-Coin",
+                "Duck Master",
+                "Status Purchase",
+                "X Empire",
+                "Follow Fintopio in Telegram",
+                "Get Fintopio Today",
+                "Coub.com",
+                "Invite more Friends"
+            }
+
             for type in ['true', 'false']:
                 tasks = asyncio.run(fetch_tasks(access_token, is_daily=type, proxies=proxy, user_agent=user_agent))
                 if tasks is not None:
                     for task in tasks:
+                        if task['title'] in excluded_tasks:
+                            log_message(f"Skipping task '{task['title']}'", Fore.YELLOW)
+                            continue
+
                         if not task['is_completed']:
-                            asyncio.run(complete_task(access_token, task_id=task['id'], task_title=task['title'], task_award=task['award'], proxies=proxy, user_agent=user_agent))
-                            time.sleep(3)
+                            retries = 0
+                            while retries < 3:
+                                task_result = asyncio.run(complete_task(access_token, task_id=task['id'], task_title=task['title'], task_award=task['award'], proxies=proxy, user_agent=user_agent))
+                                if task_result:
+                                    break
+                                retries += 1
+                                log_error(f"Retrying... ({retries}/3) for '{task['title']}'")
+                                time.sleep(1)
 
     final_balance = check_user_details(user_id, access_token, proxies=proxy)
     log_message(f"Final balance: {final_balance}", Fore.GREEN)
     if final_balance is not None:
-        total_balance.append(final_balance)  # Add to total balance
+        total_balance.append(final_balance)
     log_message("")
 
 def main():
     try:
-        check_and_correct_user_agents_format()  # Ensure user_agents.json format is correct
+        check_and_correct_user_agents_format()
 
-        # Ask the user if they want to use a proxy before the script starts
         use_proxy = get_yes_no_input("Do you want to use a proxy? (y/n): ")
 
         if use_proxy:
@@ -556,17 +564,16 @@ def main():
 
         auto_task = get_yes_no_input("Enable auto daily task? (y/n): ")
         auto_play_game = get_yes_no_input("Enable auto game play? (y/n): ")
-        fast_game = False  # Default value
+        fast_game = False
 
         if auto_play_game:
             fast_game = get_yes_no_input("Enable Fast game play? (y/n): ")
 
         play_durov = get_yes_no_input("Do you play Durov? (y/n): ")
 
-        # New option to enable other tasks
         other_tasks_enabled = get_yes_no_input("Enable other tasks? (y/n): ")
 
-        starting_account = get_starting_account_number(len(query_ids))  # Get the starting account index from the user
+        starting_account = get_starting_account_number(len(query_ids))
 
         durov_choices = []
         if play_durov:
