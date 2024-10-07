@@ -180,7 +180,7 @@ def perform_daily_spin(access_token, proxies=None, user_agent=None, fast_game=Fa
     if response.status_code == 201:
         spin_data = response.json()
         rating_award = spin_data.get("rating_award")
-        single_line_progress_bar(10, Fore.GREEN + f"Daily Spin Reward: {rating_award} [✓]" + Style.REST_ALL)  # Adjusted duration and message
+        single_line_progress_bar(10, Fore.GREEN + f"Daily Spin Reward: {rating_award} [✓]" + Style.RESET_ALL)  # Adjusted duration and message
     elif response.status_code == 400:
         log_message("Daily Spin Already Claimed [×]", Fore.RED)
     else:
@@ -214,7 +214,7 @@ def daily_hold(access_token, proxies=None, user_agent=None, fast_game=False):
     }
     response = requests.post(url_hold, data=json.dumps(payload), headers=headers_hold, proxies=proxies)
     if response.status_code == 201:
-        single_line_progress_bar(60, Fore.GREEN + "Hold Bonus Claim successfully [✓]" + Style.REST_ALL)
+        single_line_progress_bar(60, Fore.GREEN + "Hold Bonus Claim successfully [✓]" + Style.RESET_ALL)
     elif response.status_code == 400:
         log_message("Daily Hold Balance Already Claimed [×]", Fore.RED)
 
@@ -234,7 +234,7 @@ def daily_swipe(access_token, proxies=None, user_agent=None, fast_game=False):
     }
     response = requests.post(url_swipe, data=json.dumps(payload), headers=headers_swipe, proxies=proxies)
     if response.status_code == 201:
-        single_line_progress_bar(60, Fore.GREEN + "Swipe Bonus Claim successfully [✓]" + Style.REST_ALL)
+        single_line_progress_bar(60, Fore.GREEN + "Swipe Bonus Claim successfully [✓]" + Style.RESET_ALL)
     elif response.status_code == 400:
         log_message("Daily Swipe Balance Already Claimed [×]", Fore.RED)
 
