@@ -465,6 +465,9 @@ def process_account(query_id, proxies_list, auto_task, auto_full_task, auto_play
                 log_message("Daily Bonus Claimed Successfully", Fore.GREEN)
             else:
                 log_message("Daily Bonus Already Claimed", Fore.RED)  # Ensure message is printed here
+            
+            # Add random 2-3 second delay after daily bonus claim
+            time.sleep(random.randint(2, 3))
 
         if durov_enabled:
             durov(access_token, *durov_choices, proxies=proxy, user_agent=user_agent)
