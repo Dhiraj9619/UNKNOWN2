@@ -237,6 +237,19 @@ def daily_swipe(access_token, proxies=None, user_agent=None, fast_game=False):
     random_delay()
     return response
 
+def task_answer():
+    url = 'https://raw.githubusercontent.com/Dhiraj9619/UNKNOWN2/refs/heads/main/task_answers.json'
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an error for HTTP errors
+        response_answer = response.json()
+        return response_answer['youtube']
+    except requests.exceptions.HTTPError as http_err:
+        log_error(f"[ HTTP Error Occurred While Loading Task Answer: {str(http_err)} ]")
+    except Exception as e:
+        log_error(f"[ An Error Occurred While Loading Task Answer: {str(e)} ]")
+    return None
+
 async def fetch_tasks(token, is_daily, proxies=None, user_agent=None):
     url = f'https://major.bot/api/tasks/?is_daily={is_daily}'
     headers = {
@@ -261,7 +274,8 @@ async def fetch_tasks(token, is_daily, proxies=None, user_agent=None):
 
 async def complete_task(token, task_id, task_title, task_award, proxies=None, user_agent=None):
     url = 'https://major.bot/api/tasks/'
-    data = json.dumps({'task_id': task_id})
+    answers = task_answer()  # Fetch answers from the remote URL
+    data = json.dumps({'task_id': task_id, 'payload': {'code': answers.get(task_title)}})
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
