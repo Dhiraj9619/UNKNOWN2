@@ -167,9 +167,10 @@ def check_user_details(user_id, access_token, proxies=None):
 
     return None
 
-def perform_daily_spin(access_token, proxies=None, user_agent=None):
+def perform_daily_spin(access_token, proxies=None, user_agent=None, fast_game=False):
     log_message("Spin Game starting...", Fore.LIGHTWHITE_EX)
-    countdown_timer(10)  # Wait for 10 seconds after the "Spin Game starting..." message
+    if not fast_game:
+        countdown_timer(10)  # Wait for 10 seconds after the "Spin Game starting..." message
    
     url_spin = "https://major.glados.app/api/roulette/"
     headers_spin = {
@@ -191,7 +192,7 @@ def perform_daily_spin(access_token, proxies=None, user_agent=None):
     else:
         log_message(f"Failed to claim Daily Spin, status code: {response.status_code}", Fore.RED)
 
-    random_delay()
+    random_delay()  # Keep random delay
     return response
 
 def perform_daily(access_token, proxies=None, user_agent=None):
@@ -206,7 +207,7 @@ def perform_daily(access_token, proxies=None, user_agent=None):
     response = requests.post(url_daily, headers=headers_daily, proxies=proxies)
     return response
 
-def daily_hold(access_token, proxies=None, user_agent=None):
+def daily_hold(access_token, proxies=None, user_agent=None, fast_game=False):
     log_message("Hold Game completing...", Fore.LIGHTWHITE_EX)
     coins = random.randint(900, 950)
     payload = {"coins": coins} 
@@ -219,13 +220,13 @@ def daily_hold(access_token, proxies=None, user_agent=None):
         "Referer": "https://major.glados.app/"
     }
     response = requests.post(url_hold, data=json.dumps(payload), headers=headers_hold, proxies=proxies)
-    if response.status_code == 201:
-        time.sleep(60)
+    if response.status_code == 201 and not fast_game:
+        time.sleep(60)  # Skip this delay if fast_game is True
     
-    random_delay()
+    random_delay()  # Keep random delay
     return response
 
-def daily_swipe(access_token, proxies=None, user_agent=None):
+def daily_swipe(access_token, proxies=None, user_agent=None, fast_game=False):
     log_message("Swipe Game completing...", Fore.LIGHTWHITE_EX)
     coins = random.randint(1000, 1300)
     payload = {"coins": coins} 
@@ -238,10 +239,10 @@ def daily_swipe(access_token, proxies=None, user_agent=None):
         "Referer": "https://major.glados.app/"
     }
     response = requests.post(url_swipe, data=json.dumps(payload), headers=headers_swipe, proxies=proxies)
-    if response.status_code == 201:
-        time.sleep(60)
+    if response.status_code == 201 and not fast_game:
+        time.sleep(60)  # Skip this delay if fast_game is True
     
-    random_delay()
+    random_delay()  # Keep random delay
     return response
 
 async def fetch_tasks(token, is_daily, first_name, proxies=None, user_agent=None):
@@ -399,7 +400,7 @@ def extract_browser_info(user_agent):
     match = re.search(r'(Chrome/\d+\.\d+\.\d+|Firefox/\d+\.\d+|Safari/\d+\.\d+)', user_agent)
     return match.group(0) if match else "Unknown Browser"
 
-def process_account(query_id, proxies_list, auto_task, auto_full_task, auto_play_game, durov_enabled, durov_choices, account_proxies, total_balance, user_agents, account_index, proxy_usage):
+def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_enabled, durov_choices, account_proxies, total_balance, user_agents, account_index, proxy_usage, fast_game):
     user_id, username = decode_query_id(query_id)
     log_message(f"--------Account no {account_index + 1}-----------", Fore.LIGHTBLUE_EX)
     
@@ -473,19 +474,19 @@ def process_account(query_id, proxies_list, auto_task, auto_full_task, auto_play
             durov(access_token, *durov_choices, proxies=proxy, user_agent=user_agent)
 
         if auto_play_game:
-            response_hold = daily_hold(access_token, proxies=proxy, user_agent=user_agent)
+            response_hold = daily_hold(access_token, proxies=proxy, user_agent=user_agent, fast_game=fast_game)
             if response_hold.status_code == 201:
                 log_message("Daily Hold Balance Claimed Successfully", Fore.GREEN)
             elif response_hold.status_code == 400:
                 log_message("Daily Hold Balance Already Claimed", Fore.RED)
 
-            response_swipe = daily_swipe(access_token, proxies=proxy, user_agent=user_agent)
+            response_swipe = daily_swipe(access_token, proxies=proxy, user_agent=user_agent, fast_game=fast_game)
             if response_swipe.status_code == 201:
                 log_message("Daily Swipe Balance Claimed Successfully", Fore.GREEN)
             elif response_swipe.status_code == 400:
                 log_message("Daily Swipe Balance Already Claimed", Fore.RED)
 
-            response_spin = perform_daily_spin(access_token, proxies=proxy, user_agent=user_agent)
+            response_spin = perform_daily_spin(access_token, proxies=proxy, user_agent=user_agent, fast_game=fast_game)
 
         if auto_task:
             tasks = asyncio.run(fetch_tasks(access_token, is_daily=True, first_name=username, proxies=proxy, user_agent=user_agent))
@@ -511,19 +512,6 @@ def process_account(query_id, proxies_list, auto_task, auto_full_task, auto_play
                                 log_message(f"Retrying... ({retries}/3) for '{task_name}'", Fore.YELLOW)
                                 if retries == 3:
                                     log_message(f"Failed to complete '{task_name}' after 3 attempts.", Fore.RED)
-
-        if auto_full_task:
-            all_tasks_completed = True
-            tasks_response = asyncio.run(fetch_tasks(access_token, 'true', username, proxies=proxy, user_agent=user_agent))
-            if tasks_response:
-                for task in tasks_response:
-                    if not task['is_completed']:
-                        all_tasks_completed = False
-                        asyncio.run(complete_task(access_token, username, task['id'], task['title'], task['award'], proxies=proxy, user_agent=user_agent))
-                        time.sleep(3)
-
-            if all_tasks_completed:
-                log_message("All Tasks Already Completed!", Fore.YELLOW)
 
     final_balance = check_user_details(user_id, access_token, proxies=proxy)
     log_message(f"Final balance: {final_balance}", Fore.GREEN)
@@ -557,8 +545,12 @@ def main():
         art()
 
         auto_task = get_yes_no_input("Enable auto daily task? (y/n): ")
-        auto_full_task = get_yes_no_input("Enable auto few other task? (y/n): ")
         auto_play_game = get_yes_no_input("Enable auto game play? (y/n): ")
+        fast_game = False  # Default value
+
+        if auto_play_game:
+            fast_game = get_yes_no_input("Enable Fast game play? (y/n): ")
+
         play_durov = get_yes_no_input("Do you play Durov? (y/n): ")
 
         starting_account = get_starting_account_number(len(query_ids))  # Get the starting account index from the user
@@ -580,7 +572,7 @@ def main():
         total_balance = []
 
         for index, query_id in enumerate(query_ids[starting_account:], start=starting_account):
-            process_account(query_id, proxies_list, auto_task, auto_full_task, auto_play_game, play_durov, durov_choices, account_proxies, total_balance, user_agents, index, proxy_usage)
+            process_account(query_id, proxies_list, auto_task, auto_play_game, play_durov, durov_choices, account_proxies, total_balance, user_agents, index, proxy_usage, fast_game)
 
         if use_proxy:
             save_account_proxies(account_proxies)
