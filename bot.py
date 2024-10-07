@@ -124,13 +124,16 @@ def login(query_id, proxies=None, user_agent=None):
         "Referer": "https://major.glados.app/"
     }
 
-    for attempt in range(3):
+    for attempt in range(5):  # Retry 5 times
         try:
             response = requests.post(url_login, headers=headers, data=json.dumps(payload), proxies=proxies)
             response.raise_for_status()
             return response.json()
-        except (requests.exceptions.ProxyError, requests.exceptions.RequestException):
-            log_retry(f"Login attempt {attempt + 1} failed for query_id {query_id}")
+        except requests.exceptions.ProxyError as e:
+            log_retry(f"Login attempt {attempt + 1} failed for query_id {query_id}: Proxy error - {str(e)}")
+            time.sleep(1)
+        except requests.exceptions.RequestException as e:
+            log_retry(f"Login attempt {attempt + 1} failed for query_id {query_id}: Request error - {str(e)}")
             time.sleep(1)
 
     return None
@@ -157,16 +160,13 @@ def check_user_details(user_id, access_token, proxies=None):
         return rating
     
     except requests.exceptions.HTTPError as http_err:
-        log_error(f"HTTP error occurred: {http_err}")
+        log_error(f"HTTP error occurred: {http_err} for user {user_id}")
     except Exception as err:
-        log_error(f"Other error occurred: {err}")
+        log_error(f"Other error occurred: {err} for user {user_id}")
 
     return None
 
 def perform_daily_spin(access_token, proxies=None, user_agent=None, fast_game=False):
-    if not fast_game:
-        countdown_timer(10)
-   
     url_spin = "https://major.glados.app/api/roulette/"
     headers_spin = {
         "Accept": "application/json",
@@ -180,9 +180,9 @@ def perform_daily_spin(access_token, proxies=None, user_agent=None, fast_game=Fa
     if response.status_code == 201:
         spin_data = response.json()
         rating_award = spin_data.get("rating_award")
-        log_message(f"Daily Spin Reward: {rating_award}", Fore.GREEN)
+        single_line_progress_bar(10, f"Daily Spin Reward: {rating_award} [✓]")  # Adjusted duration and message
     elif response.status_code == 400:
-        log_message("Daily Spin Already Claimed", Fore.RED)
+        log_message("Daily Spin Already Claimed [×]", Fore.RED)
     else:
         log_error(f"Failed to claim Daily Spin, status code: {response.status_code}")
 
@@ -213,9 +213,11 @@ def daily_hold(access_token, proxies=None, user_agent=None, fast_game=False):
         "Referer": "https://major.glados.app/"
     }
     response = requests.post(url_hold, data=json.dumps(payload), headers=headers_hold, proxies=proxies)
-    if response.status_code == 201 and not fast_game:
-        time.sleep(60)
-    
+    if response.status_code == 201:
+        single_line_progress_bar(60, "Hold Bonus Claim successfully [✓]")
+    elif response.status_code == 400:
+        log_message("Daily Hold Balance Already Claimed [×]", Fore.RED)
+
     random_delay()
     return response
 
@@ -231,9 +233,11 @@ def daily_swipe(access_token, proxies=None, user_agent=None, fast_game=False):
         "Referer": "https://major.glados.app/"
     }
     response = requests.post(url_swipe, data=json.dumps(payload), headers=headers_swipe, proxies=proxies)
-    if response.status_code == 201 and not fast_game:
-        time.sleep(60)
-    
+    if response.status_code == 201:
+        single_line_progress_bar(60, "Swipe Bonus Claim successfully [✓]")
+    elif response.status_code == 400:
+        log_message("Daily Swipe Balance Already Claimed [×]", Fore.RED)
+
     random_delay()
     return response
 
@@ -292,7 +296,7 @@ async def complete_task(token, task_id, task_title, task_award, proxies=None, us
                 response.raise_for_status()
                 complete_task = await response.json()
                 if complete_task['is_completed']:
-                    log_message(f"[ Got {task_award} From {task_title} ]", Fore.GREEN)
+                    log_message(f"[ {task_title}: Got {task_award} [✓] ]", Fore.GREEN)
     except aiohttp.ClientResponseError as e:
         log_error(f"[ An HTTP Error Occurred While Completing Tasks: {str(e.message)} ]")
     except (Exception, aiohttp.ContentTypeError) as e:
@@ -314,19 +318,19 @@ def do_task(token, task_id, task_name, proxies=None, user_agent=None):
         if response.status_code == 200:
             result = response.json()
             if result.get('is_completed', False):
-                log_message(f"Task '{task_name}' already completed", Fore.YELLOW)
+                log_message(f"{task_name} already Claimed [×]", Fore.YELLOW)
                 return True
             else:
-                log_message(f"Task '{task_name}' completed [✓]", Fore.GREEN)
+                log_message(f"{task_name} Claimed [✓]", Fore.GREEN)
                 return True
         elif response.status_code == 201:
             if task_name == "Follow Major in Telegram":
-                log_message("Task 'Major Tg Follow' Claim Success If you already join Tg", Fore.GREEN)
+                log_message("Task Major Tg Follow Claim Success [✓]", Fore.GREEN)
             else: 
-                log_message(f"Task '{task_name}' claimed successfully", Fore.GREEN)
+                log_message(f"{task_name} claimed Success [✓]", Fore.GREEN)
             return True
         elif response.status_code == 400 and 'detail' in response.json() and response.json()['detail'] == "Task is already completed":
-            log_message(f"Task '{task_name}' already completed", Fore.RED)
+            log_message(f"{task_name} already claimed [×]", Fore.RED)
             return True
         else:
             log_error(f"Failed to complete task '{task_name}', status code: {response.status_code}")
@@ -348,10 +352,19 @@ def durov(access_token, c_1=None, c_2=None, c_3=None, c_4=None, proxies=None, us
     payload = {"choice_1": c_1, "choice_2": c_2, "choice_3": c_3, "choice_4": c_4}
     response = requests.post(url_durov, data=json.dumps(payload), headers=headers_durov, proxies=proxies)
     if response.status_code == 201:
-        log_message("Durov Task Completed Successfully", Fore.GREEN)
+        log_message("Durov Task Completed Successfully [✓]", Fore.GREEN)
     else:
-        log_message("Durov Task already completed!", Fore.RED)
+        log_message("Durov Task already completed! [×]", Fore.RED)
     return response
+
+def single_line_progress_bar(duration, message):
+    bar_length = 30
+    for percent in range(101):
+        filled_length = int(bar_length * percent // 100)
+        bar = '█' * filled_length + '▒' * (bar_length - filled_length)
+        print(f"\r{Fore.GREEN}[{bar}] {percent}%", end="")
+        time.sleep(duration / 100)
+    print(f"\r{message}" + " " * (bar_length + 10), end='\r')  # Clear line with message
 
 def countdown_timer(seconds):
     while seconds > 0:
@@ -422,8 +435,8 @@ def extract_browser_info(user_agent):
 
 def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_enabled, durov_choices, account_proxies, total_balance, user_agents, account_index, proxy_usage, fast_game, other_tasks_enabled, completed_tasks):
     user_id, username = decode_query_id(query_id)
-    log_message(f"--------Account no {account_index + 1}-----------", Fore.LIGHTBLUE_EX)
-    log_message(f"Username: {username}", Fore.LIGHTBLUE_EX)
+    log_message(f"-------- Account no {account_index + 1} ---------", Fore.LIGHTBLUE_EX)
+    log_message(f"Username: {username}", Fore.WHITE)
     
     user_agent = user_agents[-1] if user_agents else "Mozilla/5.0"
     browser_info = extract_browser_info(user_agent)
@@ -469,9 +482,9 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
         if response_daily.status_code == 200:
             daily_data = response_daily.json()
             if daily_data.get('is_increased'):
-                log_message("Daily Bonus Claimed Successfully", Fore.GREEN)
+                log_message("Daily Bonus Claimed Successfully [✓]", Fore.GREEN)
             else:
-                log_message("Daily Bonus Already Claimed", Fore.RED)
+                log_message("Daily Bonus Already Claimed [×]", Fore.RED)
             
             time.sleep(random.randint(2, 3))
 
@@ -480,17 +493,7 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
 
         if auto_play_game:
             response_hold = daily_hold(access_token, proxies=proxy, user_agent=user_agent, fast_game=fast_game)
-            if response_hold.status_code == 201:
-                log_message("Daily Hold Balance Claimed Successfully", Fore.GREEN)
-            elif response_hold.status_code == 400:
-                log_message("Daily Hold Balance Already Claimed", Fore.RED)
-
             response_swipe = daily_swipe(access_token, proxies=proxy, user_agent=user_agent, fast_game=fast_game)
-            if response_swipe.status_code == 201:
-                log_message("Daily Swipe Balance Claimed Successfully", Fore.GREEN)
-            elif response_swipe.status_code == 400:
-                log_message("Daily Swipe Balance Already Claimed", Fore.RED)
-
             response_spin = perform_daily_spin(access_token, proxies=proxy, user_agent=user_agent, fast_game=fast_game)
 
         if auto_task:
@@ -623,10 +626,6 @@ def main():
 
         for index, query_id in enumerate(query_ids[starting_account:], start=starting_account):
             process_account(query_id, proxies_list, auto_task, auto_play_game, play_durov, durov_choices, account_proxies, total_balance, user_agents, index, proxy_usage, fast_game, other_tasks_enabled, completed_tasks)
-
-            # Clear error log every two accounts
-            if (index + 1) % 2 == 0:
-                clear_error_log()
 
         if use_proxy:
             save_account_proxies(account_proxies)
