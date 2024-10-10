@@ -116,6 +116,7 @@ def login(query_id, proxies=None, user_agent=None):
 
     for attempt in range(5):  # Retry 5 times
         try:
+            check_network_connection()  # Ensure network connection before proceeding
             response = requests.post(url_login, headers=headers, data=json.dumps(payload), proxies=proxies)
             response.raise_for_status()
             return response.json()
@@ -142,6 +143,7 @@ def check_user_details(user_id, access_token, proxies=None):
     }
     
     try:
+        check_network_connection()  # Ensure network connection before proceeding
         response = requests.get(url_user_details, headers=headers_user_details, proxies=proxies)
         response.raise_for_status()
         
@@ -167,6 +169,7 @@ def perform_daily_spin(access_token, proxies=None, user_agent=None):
     }
 
     # Check if the spin has already been claimed
+    check_network_connection()  # Ensure network connection before proceeding
     response = requests.post(url_spin, headers=headers_spin, proxies=proxies)
     if response.status_code == 400:
         log_message("Daily Spin Already Claimed [×]", Fore.RED)
@@ -191,6 +194,7 @@ def perform_daily(access_token, proxies=None, user_agent=None):
         "User-Agent": user_agent,
         "Referer": "https://major.glados.app/"
     }
+    check_network_connection()  # Ensure network connection before proceeding
     response = requests.post(url_daily, headers=headers_daily, proxies=proxies)
     return response
 
@@ -207,6 +211,7 @@ def daily_hold(access_token, proxies=None, user_agent=None):
     }
 
     # Check if hold bonus is already claimed
+    check_network_connection()  # Ensure network connection before proceeding
     response = requests.post(url_hold, data=json.dumps(payload), headers=headers_hold, proxies=proxies)
     if response.status_code == 400:
         log_message("Daily Hold Balance Already Claimed [×]", Fore.RED)
@@ -233,6 +238,7 @@ def daily_swipe(access_token, proxies=None, user_agent=None):
     }
 
     # Check if swipe bonus is already claimed
+    check_network_connection()  # Ensure network connection before proceeding
     response = requests.post(url_swipe, data=json.dumps(payload), headers=headers_swipe, proxies=proxies)
     if response.status_code == 400:
         log_message("Daily Swipe Balance Already Claimed [×]", Fore.RED)
@@ -249,6 +255,7 @@ def daily_swipe(access_token, proxies=None, user_agent=None):
 def task_answer():
     url = 'https://raw.githubusercontent.com/UNKNOWN92948/UNKNOWN2/refs/heads/main/task_answers.json'
     try:
+        check_network_connection()  # Ensure network connection before proceeding
         response = requests.get(url)
         response.raise_for_status()  # Raise an error for HTTP errors
         response_answer = response.json()
@@ -268,6 +275,7 @@ async def fetch_tasks(token, is_daily, proxies=None, user_agent=None):
         "User-Agent": user_agent,
     }
     try:
+        check_network_connection()  # Ensure network connection before proceeding
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
             async with session.get(url=url, headers=headers, proxy=proxies.get('http') if proxies else None) as response:
                 if response.status in [500, 520]:
@@ -292,6 +300,7 @@ async def complete_task(token, task_id, task_title, task_award, proxies=None, us
         "User-Agent": user_agent,
     }
     try:
+        check_network_connection()  # Ensure network connection before proceeding
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
             async with session.post(url=url, headers=headers, data=data, proxy=proxies.get('http') if proxies else None) as response:
                 if response.status == 400:
@@ -318,6 +327,7 @@ def do_task(token, task_id, task_name, proxies=None, user_agent=None):
     }
     
     try:
+        check_network_connection()  # Ensure network connection before proceeding
         response = requests.post(url, headers=headers, json=payload, proxies=proxies)
         random_delay()
         if response.status_code == 200:
@@ -355,6 +365,7 @@ def durov(access_token, c_1=None, c_2=None, c_3=None, c_4=None, proxies=None, us
     }
     
     payload = {"choice_1": c_1, "choice_2": c_2, "choice_3": c_3, "choice_4": c_4}
+    check_network_connection()  # Ensure network connection before proceeding
     response = requests.post(url_durov, data=json.dumps(payload), headers=headers_durov, proxies=proxies)
     if response.status_code == 201:
         log_message("Durov Task Completed Successfully [✓]", Fore.GREEN)
@@ -586,6 +597,17 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
     if final_balance is not None:
         total_balance.append(final_balance)
     log_message("")
+
+def check_network_connection():
+    """Check if there is a network connection. If not, wait until it is restored."""
+    while True:
+        try:
+            response = requests.get("http://www.google.com", timeout=5)
+            if response.status_code == 200:
+                break
+        except requests.ConnectionError:
+            log_message("Network disconnected. Waiting for reconnection...", Fore.YELLOW)
+            time.sleep(5)
 
 def main():
     try:
