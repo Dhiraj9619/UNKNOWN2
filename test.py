@@ -96,14 +96,6 @@ def is_proxy_working(proxy):
     except requests.RequestException:
         return False
 
-def bind_working_proxy(proxies_list, account_proxies, query_id, proxy_usage):
-    for proxy in proxies_list:
-        if is_proxy_working(proxy) and proxy_usage[proxy['http']] < 4:
-            account_proxies[query_id] = proxy
-            proxy_usage[proxy['http']] += 1
-            return proxy
-    return None
-
 def login(query_id, proxies=None, user_agent=None):
     url_login = "https://major.glados.app/api/auth/tg/"
     payload = {"init_data": query_id}
@@ -119,12 +111,9 @@ def login(query_id, proxies=None, user_agent=None):
             response = requests.post(url_login, headers=headers, data=json.dumps(payload), proxies=proxies)
             response.raise_for_status()
             return response.json()
-        except requests.exceptions.ProxyError as e:
-            log_retry(f"Login attempt {attempt + 1} failed for query_id {query_id}: Proxy error - {str(e)}")
-            time.sleep(1)
         except requests.exceptions.RequestException as e:
-            log_retry(f"Login attempt {attempt + 1} failed for query_id {query_id}: Request error - {str(e)}")
-            time.sleep(1)
+            log_retry(f"Login attempt {attempt + 1} failed for query_id {query_id}: Network error - {str(e)}")
+            time.sleep(5)  # Wait before retrying
 
     return None
 
@@ -149,10 +138,8 @@ def check_user_details(user_id, access_token, proxies=None):
         rating = data.get("rating", "No rating found")
         return rating
     
-    except requests.exceptions.HTTPError as http_err:
-        log_error(f"HTTP error occurred: {http_err} for user {user_id}")
-    except Exception as err:
-        log_error(f"Other error occurred: {err} for user {user_id}")
+    except requests.exceptions.RequestException as e:
+        log_error(f"Network error occurred while fetching user details for user {user_id}: {str(e)}")
 
     return None
 
@@ -166,21 +153,24 @@ def perform_daily_spin(access_token, proxies=None, user_agent=None):
         "Referer": "https://major.glados.app/"
     }
 
-    # Check if the spin has already been claimed
-    response = requests.post(url_spin, headers=headers_spin, proxies=proxies)
-    if response.status_code == 400:
-        log_message("Daily Spin Already Claimed [×]", Fore.RED)
+    try:
+        response = requests.post(url_spin, headers=headers_spin, proxies=proxies)
+        if response.status_code == 400:
+            log_message("Daily Spin Already Claimed [×]", Fore.RED)
+            return response
+
+        single_line_progress_bar(10, "Completing Spin...")  # Spin takes 10 seconds to complete
+
+        if response.status_code == 201:
+            log_message("Daily Spin Reward claimed successfully [✓]", Fore.GREEN)
+        else:
+            log_error(f"Failed to claim Daily Spin, status code: {response.status_code}")
+
+        random_delay()
         return response
-
-    single_line_progress_bar(10, "Completing Spin...")  # Spin takes 10 seconds to complete
-
-    if response.status_code == 201:
-        log_message("Daily Spin Reward claimed successfully [✓]", Fore.GREEN)
-    else:
-        log_error(f"Failed to claim Daily Spin, status code: {response.status_code}")
-
-    random_delay()
-    return response
+    except requests.exceptions.RequestException as e:
+        log_error(f"Network error occurred while performing daily spin: {str(e)}")
+        return None
 
 def perform_daily(access_token, proxies=None, user_agent=None):
     url_daily = "https://major.glados.app/api/user-visits/visit/"
@@ -191,8 +181,12 @@ def perform_daily(access_token, proxies=None, user_agent=None):
         "User-Agent": user_agent,
         "Referer": "https://major.glados.app/"
     }
-    response = requests.post(url_daily, headers=headers_daily, proxies=proxies)
-    return response
+    try:
+        response = requests.post(url_daily, headers=headers_daily, proxies=proxies)
+        return response
+    except requests.exceptions.RequestException as e:
+        log_error(f"Network error occurred while performing daily visit: {str(e)}")
+        return None
 
 def daily_hold(access_token, proxies=None, user_agent=None):
     coins = random.randint(900, 950)
@@ -206,19 +200,22 @@ def daily_hold(access_token, proxies=None, user_agent=None):
         "Referer": "https://major.glados.app/"
     }
 
-    # Check if hold bonus is already claimed
-    response = requests.post(url_hold, data=json.dumps(payload), headers=headers_hold, proxies=proxies)
-    if response.status_code == 400:
-        log_message("Daily Hold Balance Already Claimed [×]", Fore.RED)
+    try:
+        response = requests.post(url_hold, data=json.dumps(payload), headers=headers_hold, proxies=proxies)
+        if response.status_code == 400:
+            log_message("Daily Hold Balance Already Claimed [×]", Fore.RED)
+            return response
+        
+        single_line_progress_bar(60, "Completing Hold...")  # Hold takes 60 seconds to complete
+
+        if response.status_code == 201:
+            single_line_progress_bar(2, Fore.GREEN + "Hold Bonus claimed successfully [✓]" + Style.RESET_ALL)
+
+        random_delay()
         return response
-    
-    single_line_progress_bar(60, "Completing Hold...")  # Hold takes 60 seconds to complete
-
-    if response.status_code == 201:
-        single_line_progress_bar(2, Fore.GREEN + "Hold Bonus claimed successfully [✓]" + Style.RESET_ALL)
-
-    random_delay()
-    return response
+    except requests.exceptions.RequestException as e:
+        log_error(f"Network error occurred while performing daily hold: {str(e)}")
+        return None
 
 def daily_swipe(access_token, proxies=None, user_agent=None):
     coins = random.randint(1000, 1300)
@@ -232,19 +229,22 @@ def daily_swipe(access_token, proxies=None, user_agent=None):
         "Referer": "https://major.glados.app/"
     }
 
-    # Check if swipe bonus is already claimed
-    response = requests.post(url_swipe, data=json.dumps(payload), headers=headers_swipe, proxies=proxies)
-    if response.status_code == 400:
-        log_message("Daily Swipe Balance Already Claimed [×]", Fore.RED)
+    try:
+        response = requests.post(url_swipe, data=json.dumps(payload), headers=headers_swipe, proxies=proxies)
+        if response.status_code == 400:
+            log_message("Daily Swipe Balance Already Claimed [×]", Fore.RED)
+            return response
+        
+        single_line_progress_bar(60, "Completing Swipe...")  # Swipe takes 60 seconds to complete
+
+        if response.status_code == 201:
+            single_line_progress_bar(2, Fore.GREEN + "Swipe Bonus claimed successfully [✓]" + Style.RESET_ALL)
+
+        random_delay()
         return response
-    
-    single_line_progress_bar(60, "Completing Swipe...")  # Swipe takes 60 seconds to complete
-
-    if response.status_code == 201:
-        single_line_progress_bar(2, Fore.GREEN + "Swipe Bonus claimed successfully [✓]" + Style.RESET_ALL)
-
-    random_delay()
-    return response
+    except requests.exceptions.RequestException as e:
+        log_error(f"Network error occurred while performing daily swipe: {str(e)}")
+        return None
 
 def task_answer():
     url = 'https://raw.githubusercontent.com/UNKNOWN92948/UNKNOWN2/refs/heads/main/task_answers.json'
@@ -253,10 +253,8 @@ def task_answer():
         response.raise_for_status()  # Raise an error for HTTP errors
         response_answer = response.json()
         return response_answer['youtube']
-    except requests.exceptions.HTTPError as http_err:
-        log_error(f"[ HTTP Error Occurred While Loading Task Answer: {str(http_err)} ]")
-    except Exception as e:
-        log_error(f"[ An Error Occurred While Loading Task Answer: {str(e)} ]")
+    except requests.exceptions.RequestException as e:
+        log_error(f"Network error occurred while loading task answers: {str(e)}")
     return None
 
 async def fetch_tasks(token, is_daily, proxies=None, user_agent=None):
@@ -276,7 +274,7 @@ async def fetch_tasks(token, is_daily, proxies=None, user_agent=None):
                 response.raise_for_status()
                 return await response.json()
     except aiohttp.ClientResponseError as e:
-        log_error(f"[ An HTTP Error Occurred While Fetching Tasks: {str(e.message)} ]")
+        log_error(f"[ HTTP Error Occurred While Fetching Tasks: {str(e.message)} ]")
         return None
     except (Exception, aiohttp.ContentTypeError) as e:
         log_error(f"[ An Unexpected Error Occurred While Fetching Tasks: {str(e)} ]")
@@ -341,7 +339,7 @@ def do_task(token, task_id, task_name, proxies=None, user_agent=None):
             log_error(f"Failed to complete task '{task_name}', status code: {response.status_code}")
             return False
     except requests.exceptions.RequestException as e:
-        log_error(f"Error occurred while completing task '{task_name}': {e}")
+        log_error(f"Network error occurred while completing task '{task_name}': {str(e)}")
         return False
 
 def durov(access_token, c_1=None, c_2=None, c_3=None, c_4=None, proxies=None, user_agent=None):
@@ -362,7 +360,7 @@ def durov(access_token, c_1=None, c_2=None, c_3=None, c_4=None, proxies=None, us
         else:
             log_message("Durov Task already completed! [×]", Fore.RED)
     except requests.exceptions.RequestException as e:
-        log_error(f"Error occurred while completing Durov task: {e}")
+        log_error(f"Network error occurred while completing Durov task: {str(e)}")
     return response
 
 def single_line_progress_bar(duration, message):
@@ -500,7 +498,7 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
 
     if access_token:
         response_daily = perform_daily(access_token, proxies=proxy, user_agent=user_agent)
-        if response_daily.status_code == 200:
+        if response_daily and response_daily.status_code == 200:
             daily_data = response_daily.json()
             if daily_data.get('is_increased'):
                 log_message("Daily Bonus Claimed Successfully [✓]", Fore.GREEN)
