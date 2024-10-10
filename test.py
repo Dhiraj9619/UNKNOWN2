@@ -25,7 +25,7 @@ def art():
  | |_| |  __ _   ___ | | __  ___  _ __ 
  |  _  | / _` | / __|| |/ / / _ \| '__|
  | | | || (_| || (__ |   < |  __/| |   
- \_| |_/ \__,_| \___||_|\_\ \___||_| 
+ \_| |_/ \__,_| \___||_|\_\ \___||_|   
     """ + Style.RESET_ALL)
 
     print(Fore.CYAN + "Major Script Edited by @Dhiraj_9619  DHEERAJ" + Style.RESET_ALL)
@@ -116,7 +116,6 @@ def login(query_id, proxies=None, user_agent=None):
 
     for attempt in range(5):  # Retry 5 times
         try:
-            check_network_connection()  # Ensure network connection before proceeding
             response = requests.post(url_login, headers=headers, data=json.dumps(payload), proxies=proxies)
             response.raise_for_status()
             return response.json()
@@ -143,7 +142,6 @@ def check_user_details(user_id, access_token, proxies=None):
     }
     
     try:
-        check_network_connection()  # Ensure network connection before proceeding
         response = requests.get(url_user_details, headers=headers_user_details, proxies=proxies)
         response.raise_for_status()
         
@@ -168,26 +166,21 @@ def perform_daily_spin(access_token, proxies=None, user_agent=None):
         "Referer": "https://major.glados.app/"
     }
 
-    while True:
-        try:
-            check_network_connection()  # Ensure network connection before proceeding
-            response = requests.post(url_spin, headers=headers_spin, proxies=proxies)
-            if response.status_code == 400:
-                log_message("Daily Spin Already Claimed [×]", Fore.RED)
-                return response
+    # Check if the spin has already been claimed
+    response = requests.post(url_spin, headers=headers_spin, proxies=proxies)
+    if response.status_code == 400:
+        log_message("Daily Spin Already Claimed [×]", Fore.RED)
+        return response
 
-            single_line_progress_bar(10, "Completing Spin...")  # Spin takes 10 seconds to complete
+    single_line_progress_bar(10, "Completing Spin...")  # Spin takes 10 seconds to complete
 
-            if response.status_code == 201:
-                log_message("Daily Spin Reward claimed successfully [✓]", Fore.GREEN)
-            else:
-                log_error(f"Failed to claim Daily Spin, status code: {response.status_code}")
+    if response.status_code == 201:
+        log_message("Daily Spin Reward claimed successfully [✓]", Fore.GREEN)
+    else:
+        log_error(f"Failed to claim Daily Spin, status code: {response.status_code}")
 
-            random_delay()
-            return response
-        except requests.exceptions.ChunkedEncodingError as e:
-            log_error(f"Network error during spin: {e}. Retrying...")
-            time.sleep(5)
+    random_delay()
+    return response
 
 def perform_daily(access_token, proxies=None, user_agent=None):
     url_daily = "https://major.glados.app/api/user-visits/visit/"
@@ -198,15 +191,8 @@ def perform_daily(access_token, proxies=None, user_agent=None):
         "User-Agent": user_agent,
         "Referer": "https://major.glados.app/"
     }
-    
-    while True:
-        try:
-            check_network_connection()  # Ensure network connection before proceeding
-            response = requests.post(url_daily, headers=headers_daily, proxies=proxies)
-            return response
-        except requests.exceptions.ChunkedEncodingError as e:
-            log_error(f"Network error occurred: {e}. Retrying...")
-            time.sleep(5)
+    response = requests.post(url_daily, headers=headers_daily, proxies=proxies)
+    return response
 
 def daily_hold(access_token, proxies=None, user_agent=None):
     coins = random.randint(900, 950)
@@ -220,24 +206,19 @@ def daily_hold(access_token, proxies=None, user_agent=None):
         "Referer": "https://major.glados.app/"
     }
 
-    while True:
-        try:
-            check_network_connection()  # Ensure network connection before proceeding
-            response = requests.post(url_hold, data=json.dumps(payload), headers=headers_hold, proxies=proxies)
-            if response.status_code == 400:
-                log_message("Daily Hold Balance Already Claimed [×]", Fore.RED)
-                return response
-            
-            single_line_progress_bar(60, "Completing Hold...")  # Hold takes 60 seconds to complete
+    # Check if hold bonus is already claimed
+    response = requests.post(url_hold, data=json.dumps(payload), headers=headers_hold, proxies=proxies)
+    if response.status_code == 400:
+        log_message("Daily Hold Balance Already Claimed [×]", Fore.RED)
+        return response
+    
+    single_line_progress_bar(60, "Completing Hold...")  # Hold takes 60 seconds to complete
 
-            if response.status_code == 201:
-                single_line_progress_bar(2, Fore.GREEN + "Hold Bonus claimed successfully [✓]" + Style.RESET_ALL)
+    if response.status_code == 201:
+        single_line_progress_bar(2, Fore.GREEN + "Hold Bonus claimed successfully [✓]" + Style.RESET_ALL)
 
-            random_delay()
-            return response
-        except requests.exceptions.ChunkedEncodingError as e:
-            log_error(f"Network error during hold: {e}. Retrying...")
-            time.sleep(5)
+    random_delay()
+    return response
 
 def daily_swipe(access_token, proxies=None, user_agent=None):
     coins = random.randint(1000, 1300)
@@ -251,42 +232,32 @@ def daily_swipe(access_token, proxies=None, user_agent=None):
         "Referer": "https://major.glados.app/"
     }
 
-    while True:
-        try:
-            check_network_connection()  # Ensure network connection before proceeding
-            response = requests.post(url_swipe, data=json.dumps(payload), headers=headers_swipe, proxies=proxies)
-            if response.status_code == 400:
-                log_message("Daily Swipe Balance Already Claimed [×]", Fore.RED)
-                return response
-            
-            single_line_progress_bar(60, "Completing Swipe...")  # Swipe takes 60 seconds to complete
+    # Check if swipe bonus is already claimed
+    response = requests.post(url_swipe, data=json.dumps(payload), headers=headers_swipe, proxies=proxies)
+    if response.status_code == 400:
+        log_message("Daily Swipe Balance Already Claimed [×]", Fore.RED)
+        return response
+    
+    single_line_progress_bar(60, "Completing Swipe...")  # Swipe takes 60 seconds to complete
 
-            if response.status_code == 201:
-                single_line_progress_bar(2, Fore.GREEN + "Swipe Bonus claimed successfully [✓]" + Style.RESET_ALL)
+    if response.status_code == 201:
+        single_line_progress_bar(2, Fore.GREEN + "Swipe Bonus claimed successfully [✓]" + Style.RESET_ALL)
 
-            random_delay()
-            return response
-        except requests.exceptions.ChunkedEncodingError as e:
-            log_error(f"Network error during swipe: {e}. Retrying...")
-            time.sleep(5)
+    random_delay()
+    return response
 
 def task_answer():
     url = 'https://raw.githubusercontent.com/UNKNOWN92948/UNKNOWN2/refs/heads/main/task_answers.json'
-    while True:
-        try:
-            check_network_connection()  # Ensure network connection before proceeding
-            response = requests.get(url)
-            response.raise_for_status()  # Raise an error for HTTP errors
-            response_answer = response.json()
-            return response_answer['youtube']
-        except requests.exceptions.HTTPError as http_err:
-            log_error(f"[ HTTP Error Occurred While Loading Task Answer: {str(http_err)} ]")
-        except requests.exceptions.ChunkedEncodingError as e:
-            log_error(f"Network error during task answer fetch: {e}. Retrying...")
-            time.sleep(5)
-        except Exception as e:
-            log_error(f"[ An Error Occurred While Loading Task Answer: {str(e)} ]")
-            return None
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an error for HTTP errors
+        response_answer = response.json()
+        return response_answer['youtube']
+    except requests.exceptions.HTTPError as http_err:
+        log_error(f"[ HTTP Error Occurred While Loading Task Answer: {str(http_err)} ]")
+    except Exception as e:
+        log_error(f"[ An Error Occurred While Loading Task Answer: {str(e)} ]")
+    return None
 
 async def fetch_tasks(token, is_daily, proxies=None, user_agent=None):
     url = f'https://major.bot/api/tasks/?is_daily={is_daily}'
@@ -296,24 +267,19 @@ async def fetch_tasks(token, is_daily, proxies=None, user_agent=None):
         "Content-Type": "application/json",
         "User-Agent": user_agent,
     }
-    while True:
-        try:
-            check_network_connection()  # Ensure network connection before proceeding
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
-                async with session.get(url=url, headers=headers, proxy=proxies.get('http') if proxies else None) as response:
-                    if response.status in [500, 520]:
-                        log_error("[ Server Major Down ]")
-                        return None
-                    response.raise_for_status()
-                    return await response.json()
-        except aiohttp.ClientResponseError as e:
-            log_error(f"[ An HTTP Error Occurred While Fetching Tasks: {str(e.message)} ]")
-            return None
-        except aiohttp.ClientConnectionError as e:
-            log_error(f"Network error during task fetch: {e}. Retrying...")
-            await asyncio.sleep(5)
-        except (Exception, aiohttp.ContentTypeError) as e:
-            log_error(f"[ An Unexpected Error Occurred While Fetching Tasks: {str(e)} ]")
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
+            async with session.get(url=url, headers=headers, proxy=proxies.get('http') if proxies else None) as response:
+                if response.status in [500, 520]:
+                    log_error("[ Server Major Down ]")
+                    return None
+                response.raise_for_status()
+                return await response.json()
+    except aiohttp.ClientResponseError as e:
+        log_error(f"[ An HTTP Error Occurred While Fetching Tasks: {str(e.message)} ]")
+        return None
+    except (Exception, aiohttp.ContentTypeError) as e:
+        log_error(f"[ An Unexpected Error Occurred While Fetching Tasks: {str(e)} ]")
 
 async def complete_task(token, task_id, task_title, task_award, proxies=None, user_agent=None):
     url = 'https://major.bot/api/tasks/'
@@ -325,28 +291,21 @@ async def complete_task(token, task_id, task_title, task_award, proxies=None, us
         "Content-Type": "application/json",
         "User-Agent": user_agent,
     }
-    while True:
-        try:
-            check_network_connection()  # Ensure network connection before proceeding
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
-                async with session.post(url=url, headers=headers, data=data, proxy=proxies.get('http') if proxies else None) as response:
-                    if response.status == 400:
-                        return
-                    elif response.status in [500, 520]:
-                        log_error("[ Server Major Down ]")
-                    response.raise_for_status()
-                    complete_task = await response.json()
-                    if complete_task['is_completed']:
-                        log_message(f"[ {task_title}: Got {task_award} [✓] ]", Fore.GREEN)
-                        return
-        except aiohttp.ClientResponseError as e:
-            log_error(f"[ An HTTP Error Occurred While Completing Tasks: {str(e.message)} ]")
-            return
-        except aiohttp.ClientConnectionError as e:
-            log_error(f"Network error during task completion: {e}. Retrying...")
-            await asyncio.sleep(5)
-        except (Exception, aiohttp.ContentTypeError) as e:
-            log_error(f"[ An Unexpected Error Occurred While Completing Tasks: {str(e)} ]")
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
+            async with session.post(url=url, headers=headers, data=data, proxy=proxies.get('http') if proxies else None) as response:
+                if response.status == 400:
+                    return
+                elif response.status in [500, 520]:
+                    log_error("[ Server Major Down ]")
+                response.raise_for_status()
+                complete_task = await response.json()
+                if complete_task['is_completed']:
+                    log_message(f"[ {task_title}: Got {task_award} [✓] ]", Fore.GREEN)
+    except aiohttp.ClientResponseError as e:
+        log_error(f"[ An HTTP Error Occurred While Completing Tasks: {str(e.message)} ]")
+    except (Exception, aiohttp.ContentTypeError) as e:
+        log_error(f"[ An Unexpected Error Occurred While Completing Tasks: {str(e)} ]")
 
 def do_task(token, task_id, task_name, proxies=None, user_agent=None):
     url = "https://major.bot/api/tasks/"
@@ -358,34 +317,32 @@ def do_task(token, task_id, task_name, proxies=None, user_agent=None):
         "User-Agent": user_agent,
     }
     
-    while True:
-        try:
-            check_network_connection()  # Ensure network connection before proceeding
-            response = requests.post(url, headers=headers, json=payload, proxies=proxies)
-            random_delay()
-            if response.status_code == 200:
-                result = response.json()
-                if result.get('is_completed', False):
-                    log_message(f"{task_name} already Claimed [×]", Fore.YELLOW)
-                    return True
-                else:
-                    log_message(f"{task_name} Claimed [✓]", Fore.GREEN)
-                    return True
-            elif response.status_code == 201:
-                if task_name == "Follow Major in Telegram":
-                    log_message("Task Major Tg Follow Claim Success [✓]", Fore.GREEN)
-                else: 
-                    log_message(f"{task_name} claimed Success [✓]", Fore.GREEN)
-                return True
-            elif response.status_code == 400 and 'detail' in response.json() and response.json()['detail'] == "Task is already completed":
-                log_message(f"{task_name} already claimed [×]", Fore.RED)
+    try:
+        response = requests.post(url, headers=headers, json=payload, proxies=proxies)
+        random_delay()
+        if response.status_code == 200:
+            result = response.json()
+            if result.get('is_completed', False):
+                log_message(f"{task_name} already Claimed [×]", Fore.YELLOW)
                 return True
             else:
-                log_error(f"Failed to complete task '{task_name}', status code: {response.status_code}")
-                return False
-        except requests.exceptions.RequestException as e:
-            log_error(f"Error occurred while completing task '{task_name}': {e}")
-            time.sleep(5)  # Wait before retrying
+                log_message(f"{task_name} Claimed [✓]", Fore.GREEN)
+                return True
+        elif response.status_code == 201:
+            if task_name == "Follow Major in Telegram":
+                log_message("Task Major Tg Follow Claim Success [✓]", Fore.GREEN)
+            else: 
+                log_message(f"{task_name} claimed Success [✓]", Fore.GREEN)
+            return True
+        elif response.status_code == 400 and 'detail' in response.json() and response.json()['detail'] == "Task is already completed":
+            log_message(f"{task_name} already claimed [×]", Fore.RED)
+            return True
+        else:
+            log_error(f"Failed to complete task '{task_name}', status code: {response.status_code}")
+            return False
+    except requests.exceptions.RequestException as e:
+        log_error(f"Error occurred while completing task '{task_name}': {e}")
+        return False
 
 def durov(access_token, c_1=None, c_2=None, c_3=None, c_4=None, proxies=None, user_agent=None):
     url_durov = "https://major.bot/api/durov/"
@@ -398,19 +355,15 @@ def durov(access_token, c_1=None, c_2=None, c_3=None, c_4=None, proxies=None, us
     }
     
     payload = {"choice_1": c_1, "choice_2": c_2, "choice_3": c_3, "choice_4": c_4}
-    while True:
-        try:
-            check_network_connection()  # Ensure network connection before proceeding
-            response = requests.post(url_durov, data=json.dumps(payload), headers=headers_durov, proxies=proxies)
-            if response.status_code == 201:
-                log_message("Durov Task Completed Successfully [✓]", Fore.GREEN)
-                return response
-            else:
-                log_message("Durov Task already completed! [×]", Fore.RED)
-                return response
-        except requests.exceptions.ChunkedEncodingError as e:
-            log_error(f"Network error during Durov task: {e}. Retrying...")
-            time.sleep(5)
+    try:
+        response = requests.post(url_durov, data=json.dumps(payload), headers=headers_durov, proxies=proxies)
+        if response.status_code == 201:
+            log_message("Durov Task Completed Successfully [✓]", Fore.GREEN)
+        else:
+            log_message("Durov Task already completed! [×]", Fore.RED)
+    except requests.exceptions.RequestException as e:
+        log_error(f"Error occurred while completing Durov task: {e}")
+    return response
 
 def single_line_progress_bar(duration, message):
     bar_length = 30
@@ -597,7 +550,7 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
                 "Promote TON blockchain",
                 "Boost Major channel",
                 "Boost Roxman channel",
-                "Follow CATS Channel'",
+                "Follow CATS Channel",
                 "Follow Roxman in Telegram",
                 "Binance x TON",
                 "One-time Stars Purchase",
@@ -636,18 +589,6 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
     if final_balance is not None:
         total_balance.append(final_balance)
     log_message("")
-
-def check_network_connection():
-    """Check if there is a network connection. If not, wait until it is restored."""
-    while True:
-        try:
-            response = requests.get("http://www.google.com", timeout=5)
-            if response.status_code == 200:
-                log_message("Network reconnected. Resuming operations...", Fore.GREEN)
-                break
-        except requests.ConnectionError:
-            log_message("Network disconnected. Waiting for reconnection...", Fore.YELLOW)
-            time.sleep(5)
 
 def main():
     try:
