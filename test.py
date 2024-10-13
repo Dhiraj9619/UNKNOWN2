@@ -96,18 +96,6 @@ def is_proxy_working(proxy):
     except requests.RequestException:
         return False
 
-def retry_on_failure(func):
-    """Decorator to retry a function on network failure."""
-    def wrapper(*args, **kwargs):
-        while True:
-            try:
-                return func(*args, **kwargs)
-            except requests.exceptions.RequestException as e:
-                log_error(f"Network error in {func.__name__}: {str(e)}. Retrying...")
-                time.sleep(5)
-    return wrapper
-
-@retry_on_failure
 def login(query_id, proxies=None, user_agent=None):
     url_login = "https://major.glados.app/api/auth/tg/"
     payload = {"init_data": query_id}
@@ -117,14 +105,19 @@ def login(query_id, proxies=None, user_agent=None):
         "User-Agent": user_agent,
         "Referer": "https://major.glados.app/"
     }
-    response = requests.post(url_login, headers=headers, data=json.dumps(payload), proxies=proxies)
-    response.raise_for_status()
-    return response.json()
+
+    while True:  # Keep trying until success
+        try:
+            response = requests.post(url_login, headers=headers, data=json.dumps(payload), proxies=proxies)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            log_retry(f"Login failed for query_id {query_id}: Network error - {str(e)}. Retrying...")
+            time.sleep(5)  # Wait before retrying
 
 def get_access_token(data):
     return data.get('access_token')
 
-@retry_on_failure
 def check_user_details(user_id, access_token, proxies=None):
     url_user_details = f"https://major.glados.app/api/users/{user_id}/"
     headers_user_details = {
@@ -134,12 +127,19 @@ def check_user_details(user_id, access_token, proxies=None):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         "Referer": "https://major.glados.app/"
     }
-    response = requests.get(url_user_details, headers=headers_user_details, proxies=proxies)
-    response.raise_for_status()
-    data = response.json()
-    return data.get("rating", "No rating found")
+    
+    while True:  # Keep trying until success
+        try:
+            response = requests.get(url_user_details, headers=headers_user_details, proxies=proxies)
+            response.raise_for_status()
+            
+            data = response.json()
+            rating = data.get("rating", "No rating found")
+            return rating
+        except requests.exceptions.RequestException as e:
+            log_error(f"Network error occurred while fetching user details for user {user_id}: {str(e)}. Retrying...")
+            time.sleep(5)  # Wait before retrying
 
-@retry_on_failure
 def perform_daily_spin(access_token, proxies=None, user_agent=None):
     url_spin = "https://major.glados.app/api/roulette/"
     headers_spin = {
@@ -149,22 +149,27 @@ def perform_daily_spin(access_token, proxies=None, user_agent=None):
         "User-Agent": user_agent,
         "Referer": "https://major.glados.app/"
     }
-    response = requests.post(url_spin, headers=headers_spin, proxies=proxies)
-    if response.status_code == 400:
-        log_message("Daily Spin Already Claimed [×]", Fore.RED)
-        return response
 
-    single_line_progress_bar(10, "Completing Spin...")  # Spin takes 10 seconds to complete
+    while True:  # Keep trying until success
+        try:
+            response = requests.post(url_spin, headers=headers_spin, proxies=proxies)
+            if response.status_code == 400:
+                log_message("Daily Spin Already Claimed [×]", Fore.RED)
+                return response
 
-    if response.status_code == 201:
-        log_message("Daily Spin Reward claimed successfully [✓]", Fore.GREEN)
-    else:
-        log_error(f"Failed to claim Daily Spin, status code: {response.status_code}")
+            single_line_progress_bar(10, "Completing Spin...")  # Spin takes 10 seconds to complete
 
-    random_delay()
-    return response
+            if response.status_code == 201:
+                log_message("Daily Spin Reward claimed successfully [✓]", Fore.GREEN)
+            else:
+                log_error(f"Failed to claim Daily Spin, status code: {response.status_code}")
 
-@retry_on_failure
+            random_delay()
+            return response
+        except requests.exceptions.RequestException as e:
+            log_error(f"Network error occurred while performing daily spin: {str(e)}. Retrying...")
+            time.sleep(5)  # Wait before retrying
+
 def perform_daily(access_token, proxies=None, user_agent=None):
     url_daily = "https://major.glados.app/api/user-visits/visit/"
     headers_daily = {
@@ -174,36 +179,48 @@ def perform_daily(access_token, proxies=None, user_agent=None):
         "User-Agent": user_agent,
         "Referer": "https://major.glados.app/"
     }
-    response = requests.post(url_daily, headers=headers_daily, proxies=proxies)
-    return response
+    
+    while True:  # Keep trying until success
+        try:
+            response = requests.post(url_daily, headers=headers_daily, proxies=proxies)
+            return response
+        except requests.exceptions.RequestException as e:
+            log_error(f"Network error occurred while performing daily visit: {str(e)}. Retrying...")
+            time.sleep(5)  # Wait before retrying
 
-@retry_on_failure
-def daily_hold(access_token, proxies=None, user_agent=None):
-    coins = random.randint(900, 950)
-    payload = {"coins": coins} 
-    url_hold = "https://major.glados.app/api/bonuses/coins/"
-    headers_hold = {
+async def coins(token: str, reward_coins: int, proxies=None, user_agent=None):
+    url = 'https://major.bot/api/bonuses/coins/'
+    data = json.dumps({'coins': reward_coins})
+    headers = {
+        "Authorization": f"Bearer {token}",
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {access_token}",
         "User-Agent": user_agent,
-        "Referer": "https://major.glados.app/"
+        "Content-Length": str(len(data)),
+        "Origin": "https://major.bot"
     }
-    response = requests.post(url_hold, data=json.dumps(payload), headers=headers_hold, proxies=proxies)
-    if response.status_code == 400:
-        log_message("Daily Hold Balance Already Claimed [×]", Fore.RED)
-        return response
-    
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
+            async with session.post(url=url, headers=headers, data=data, proxy=proxies.get('http') if proxies else None) as response:
+                if response.status == 400:
+                    log_message("Daily Hold Balance Already Claimed [×]", Fore.RED)
+                elif response.status in [500, 520]:
+                    log_message("Server Major Down", Fore.YELLOW)
+                response.raise_for_status()
+                coins = await response.json()
+                if coins['success']:
+                    log_message(f"Hold Bonus Claim: {reward_coins} [✓]", Fore.GREEN)
+    except aiohttp.ClientResponseError as e:
+        log_message(f"An HTTP Error Occurred While Playing Hold Coins: {str(e.message)}", Fore.RED)
+    except (Exception, aiohttp.ContentTypeError) as e:
+        log_message(f"An Unexpected Error Occurred While Playing Hold Coins: {str(e)}", Fore.RED)
+
+async def daily_hold(token: str, proxies=None, user_agent=None):
+    reward_coins = random.randint(900, 950)
+    await coins(token=token, reward_coins=reward_coins, proxies=proxies, user_agent=user_agent)
     single_line_progress_bar(60, "Completing Hold...")  # Hold takes 60 seconds to complete
 
-    if response.status_code == 201:
-        single_line_progress_bar(2, Fore.GREEN + "Hold Bonus claimed successfully [✓]" + Style.RESET_ALL)
-
-    random_delay()
-    return response
-
-@retry_on_failure
-def daily_swipe(access_token, proxies=None, user_agent=None):
+async def daily_swipe(access_token, proxies=None, user_agent=None):
     coins = random.randint(1000, 1300)
     payload = {"coins": coins} 
     url_swipe = "https://major.glados.app/api/swipe_coin/"
@@ -214,18 +231,24 @@ def daily_swipe(access_token, proxies=None, user_agent=None):
         "User-Agent": user_agent,
         "Referer": "https://major.glados.app/"
     }
-    response = requests.post(url_swipe, data=json.dumps(payload), headers=headers_swipe, proxies=proxies)
-    if response.status_code == 400:
-        log_message("Daily Swipe Balance Already Claimed [×]", Fore.RED)
-        return response
-    
-    single_line_progress_bar(60, "Completing Swipe...")  # Swipe takes 60 seconds to complete
 
-    if response.status_code == 201:
-        single_line_progress_bar(2, Fore.GREEN + "Swipe Bonus claimed successfully [✓]" + Style.RESET_ALL)
+    while True:  # Keep trying until success
+        try:
+            response = requests.post(url_swipe, data=json.dumps(payload), headers=headers_swipe, proxies=proxies)
+            if response.status_code == 400:
+                log_message("Daily Swipe Balance Already Claimed [×]", Fore.RED)
+                return response
+            
+            single_line_progress_bar(60, "Completing Swipe...")  # Swipe takes 60 seconds to complete
 
-    random_delay()
-    return response
+            if response.status_code == 201:
+                single_line_progress_bar(2, Fore.GREEN + "Swipe Bonus claimed successfully [✓]" + Style.RESET_ALL)
+
+            random_delay()
+            return response
+        except requests.exceptions.RequestException as e:
+            log_error(f"Network error occurred while performing daily swipe: {str(e)}. Retrying...")
+            time.sleep(5)  # Wait before retrying
 
 def task_answer():
     url = 'https://raw.githubusercontent.com/UNKNOWN92948/UNKNOWN2/refs/heads/main/task_answers.json'
@@ -502,8 +525,8 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
             durov(access_token, *durov_choices, proxies=proxy, user_agent=user_agent)
 
         if auto_play_game:
-            daily_hold(access_token, proxies=proxy, user_agent=user_agent)
-            daily_swipe(access_token, proxies=proxy, user_agent=user_agent)
+            asyncio.run(daily_hold(token=access_token, proxies=proxy, user_agent=user_agent))
+            asyncio.run(daily_swipe(access_token, proxies=proxy, user_agent=user_agent))
             perform_daily_spin(access_token, proxies=proxy, user_agent=user_agent)
 
         if auto_task:
