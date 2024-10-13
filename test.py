@@ -73,13 +73,11 @@ def load_user_agents(query_ids):
         with open('user_agents.json', 'r') as file:
             user_agents = json.load(file)
 
-        # Validate the format
         if not isinstance(user_agents, dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in user_agents.items()):
             raise ValueError("Invalid format")
 
         return user_agents
     except (json.JSONDecodeError, ValueError):
-        # Clear the file and regenerate if format is incorrect
         return generate_user_agents(query_ids)
 
 def select_random_proxy(proxies, proxy_usage):
@@ -106,14 +104,14 @@ def login(query_id, proxies=None, user_agent=None):
         "Referer": "https://major.glados.app/"
     }
 
-    while True:  # Keep trying until success
+    while True:
         try:
             response = requests.post(url_login, headers=headers, data=json.dumps(payload), proxies=proxies)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
             log_retry(f"Login failed for query_id {query_id}: Network error - {str(e)}. Retrying...")
-            time.sleep(5)  # Wait before retrying
+            time.sleep(5)
 
 def get_access_token(data):
     return data.get('access_token')
@@ -124,11 +122,11 @@ def check_user_details(user_id, access_token, proxies=None):
         "Accept": "application/json",
         "Content-Type": "application/json",
         "Authorization": f"Bearer {access_token}",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "User-Agent": "Mozilla/5.0",
         "Referer": "https://major.glados.app/"
     }
     
-    while True:  # Keep trying until success
+    while True:
         try:
             response = requests.get(url_user_details, headers=headers_user_details, proxies=proxies)
             response.raise_for_status()
@@ -138,7 +136,7 @@ def check_user_details(user_id, access_token, proxies=None):
             return rating
         except requests.exceptions.RequestException as e:
             log_error(f"Network error occurred while fetching user details for user {user_id}: {str(e)}. Retrying...")
-            time.sleep(5)  # Wait before retrying
+            time.sleep(5)
 
 def perform_daily_spin(access_token, proxies=None, user_agent=None):
     url_spin = "https://major.glados.app/api/roulette/"
@@ -150,14 +148,14 @@ def perform_daily_spin(access_token, proxies=None, user_agent=None):
         "Referer": "https://major.glados.app/"
     }
 
-    while True:  # Keep trying until success
+    while True:
         try:
             response = requests.post(url_spin, headers=headers_spin, proxies=proxies)
             if response.status_code == 400:
                 log_message("Daily Spin Already Claimed [×]", Fore.RED)
                 return response
 
-            single_line_progress_bar(10, "Completing Spin...")  # Spin takes 10 seconds to complete
+            single_line_progress_bar(10, "Completing Spin...")
 
             if response.status_code == 201:
                 log_message("Daily Spin Reward claimed successfully [✓]", Fore.GREEN)
@@ -168,7 +166,7 @@ def perform_daily_spin(access_token, proxies=None, user_agent=None):
             return response
         except requests.exceptions.RequestException as e:
             log_error(f"Network error occurred while performing daily spin: {str(e)}. Retrying...")
-            time.sleep(5)  # Wait before retrying
+            time.sleep(5)
 
 def perform_daily(access_token, proxies=None, user_agent=None):
     url_daily = "https://major.glados.app/api/user-visits/visit/"
@@ -180,13 +178,13 @@ def perform_daily(access_token, proxies=None, user_agent=None):
         "Referer": "https://major.glados.app/"
     }
     
-    while True:  # Keep trying until success
+    while True:
         try:
             response = requests.post(url_daily, headers=headers_daily, proxies=proxies)
             return response
         except requests.exceptions.RequestException as e:
             log_error(f"Network error occurred while performing daily visit: {str(e)}. Retrying...")
-            time.sleep(5)  # Wait before retrying
+            time.sleep(5)
 
 async def coins(token: str, reward_coins: int, proxies=None, user_agent=None):
     url = 'https://major.bot/api/bonuses/coins/'
@@ -216,9 +214,9 @@ async def coins(token: str, reward_coins: int, proxies=None, user_agent=None):
         log_message(f"An Unexpected Error Occurred While Playing Hold Coins: {str(e)}", Fore.RED)
 
 async def daily_hold(token: str, proxies=None, user_agent=None):
-    reward_coins = random.randint(900, 950)
+    reward_coins = 915  # Fixed coin amount
+    single_line_progress_bar(60, "Completing Hold...")  # Progress bar before the actual claim
     await coins(token=token, reward_coins=reward_coins, proxies=proxies, user_agent=user_agent)
-    single_line_progress_bar(60, "Completing Hold...")  # Hold takes 60 seconds to complete
 
 async def daily_swipe(access_token, proxies=None, user_agent=None):
     coins = random.randint(1000, 1300)
@@ -232,14 +230,14 @@ async def daily_swipe(access_token, proxies=None, user_agent=None):
         "Referer": "https://major.glados.app/"
     }
 
-    while True:  # Keep trying until success
+    while True:
         try:
             response = requests.post(url_swipe, data=json.dumps(payload), headers=headers_swipe, proxies=proxies)
             if response.status_code == 400:
                 log_message("Daily Swipe Balance Already Claimed [×]", Fore.RED)
                 return response
             
-            single_line_progress_bar(60, "Completing Swipe...")  # Swipe takes 60 seconds to complete
+            single_line_progress_bar(60, "Completing Swipe...")
 
             if response.status_code == 201:
                 single_line_progress_bar(2, Fore.GREEN + "Swipe Bonus claimed successfully [✓]" + Style.RESET_ALL)
@@ -248,19 +246,19 @@ async def daily_swipe(access_token, proxies=None, user_agent=None):
             return response
         except requests.exceptions.RequestException as e:
             log_error(f"Network error occurred while performing daily swipe: {str(e)}. Retrying...")
-            time.sleep(5)  # Wait before retrying
+            time.sleep(5)
 
 def task_answer():
     url = 'https://raw.githubusercontent.com/UNKNOWN92948/UNKNOWN2/refs/heads/main/task_answers.json'
-    while True:  # Keep trying until success
+    while True:
         try:
             response = requests.get(url)
-            response.raise_for_status()  # Raise an error for HTTP errors
+            response.raise_for_status()
             response_answer = response.json()
             return response_answer['youtube']
         except requests.exceptions.RequestException as e:
             log_error(f"Network error occurred while loading task answers: {str(e)}. Retrying...")
-            time.sleep(5)  # Wait before retrying
+            time.sleep(5)
 
 async def fetch_tasks(token, is_daily, proxies=None, user_agent=None):
     url = f'https://major.bot/api/tasks/?is_daily={is_daily}'
@@ -270,7 +268,7 @@ async def fetch_tasks(token, is_daily, proxies=None, user_agent=None):
         "Content-Type": "application/json",
         "User-Agent": user_agent,
     }
-    while True:  # Keep trying until success
+    while True:
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
                 async with session.get(url=url, headers=headers, proxy=proxies.get('http') if proxies else None) as response:
@@ -281,14 +279,14 @@ async def fetch_tasks(token, is_daily, proxies=None, user_agent=None):
                     return await response.json()
         except aiohttp.ClientResponseError as e:
             log_error(f"[ HTTP Error Occurred While Fetching Tasks: {str(e.message)} ]. Retrying...")
-            await asyncio.sleep(5)  # Wait before retrying
+            await asyncio.sleep(5)
         except (Exception, aiohttp.ContentTypeError) as e:
             log_error(f"[ An Unexpected Error Occurred While Fetching Tasks: {str(e)} ]. Retrying...")
-            await asyncio.sleep(5)  # Wait before retrying
+            await asyncio.sleep(5)
 
 async def complete_task(token, task_id, task_title, task_award, proxies=None, user_agent=None):
     url = 'https://major.bot/api/tasks/'
-    answers = task_answer()  # Fetch answers from the remote URL
+    answers = task_answer()
     data = json.dumps({'task_id': task_id, 'payload': {'code': answers.get(task_title)}})
     headers = {
         "Authorization": f"Bearer {token}",
@@ -296,7 +294,7 @@ async def complete_task(token, task_id, task_title, task_award, proxies=None, us
         "Content-Type": "application/json",
         "User-Agent": user_agent,
     }
-    while True:  # Keep trying until success
+    while True:
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
                 async with session.post(url=url, headers=headers, data=data, proxy=proxies.get('http') if proxies else None) as response:
@@ -311,10 +309,10 @@ async def complete_task(token, task_id, task_title, task_award, proxies=None, us
                     return
         except aiohttp.ClientResponseError as e:
             log_error(f"[ An HTTP Error Occurred While Completing Tasks: {str(e.message)} ]. Retrying...")
-            await asyncio.sleep(5)  # Wait before retrying
+            await asyncio.sleep(5)
         except (Exception, aiohttp.ContentTypeError) as e:
             log_error(f"[ An Unexpected Error Occurred While Completing Tasks: {str(e)} ]. Retrying...")
-            await asyncio.sleep(5)  # Wait before retrying
+            await asyncio.sleep(5)
 
 def do_task(token, task_id, task_name, proxies=None, user_agent=None):
     url = "https://major.bot/api/tasks/"
@@ -326,7 +324,7 @@ def do_task(token, task_id, task_name, proxies=None, user_agent=None):
         "User-Agent": user_agent,
     }
     
-    while True:  # Keep trying until success
+    while True:
         try:
             response = requests.post(url, headers=headers, json=payload, proxies=proxies)
             random_delay()
@@ -352,7 +350,7 @@ def do_task(token, task_id, task_name, proxies=None, user_agent=None):
                 return False
         except requests.exceptions.RequestException as e:
             log_error(f"Network error occurred while completing task '{task_name}': {str(e)}. Retrying...")
-            time.sleep(5)  # Wait before retrying
+            time.sleep(5)
 
 def durov(access_token, c_1=None, c_2=None, c_3=None, c_4=None, proxies=None, user_agent=None):
     url_durov = "https://major.bot/api/durov/"
@@ -365,7 +363,7 @@ def durov(access_token, c_1=None, c_2=None, c_3=None, c_4=None, proxies=None, us
     }
     
     payload = {"choice_1": c_1, "choice_2": c_2, "choice_3": c_3, "choice_4": c_4}
-    while True:  # Keep trying until success
+    while True:
         try:
             response = requests.post(url_durov, data=json.dumps(payload), headers=headers_durov, proxies=proxies)
             if response.status_code == 201:
@@ -375,7 +373,7 @@ def durov(access_token, c_1=None, c_2=None, c_3=None, c_4=None, proxies=None, us
             return response
         except requests.exceptions.RequestException as e:
             log_error(f"Network error occurred while completing Durov task: {str(e)}. Retrying...")
-            time.sleep(5)  # Wait before retrying
+            time.sleep(5)
 
 def single_line_progress_bar(duration, message):
     bar_length = 30
@@ -384,7 +382,7 @@ def single_line_progress_bar(duration, message):
         bar = '█' * filled_length + '▒' * (bar_length - filled_length)
         print(f"\r{Fore.GREEN}[{bar}] {percent}%", end="")
         time.sleep(duration / 100)
-    print(f"\r{message}" + " " * (bar_length + 10), end='\r')  # Clear line with message
+    print(f"\r{message}" + " " * (bar_length + 10), end='\r')
 
 def countdown_timer(seconds):
     while seconds > 0:
@@ -624,7 +622,7 @@ def main():
 
         auto_task = get_yes_no_input("Enable auto daily task? (y/n): ")
         auto_play_game = get_yes_no_input("Enable auto game play? (y/n): ")
-        fast_game = False  # Fast game play is now disabled by default and not asked
+        fast_game = False
 
         play_durov = get_yes_no_input("Do you play Durov? (y/n): ")
 
@@ -636,7 +634,6 @@ def main():
         if not fast_game:
             ending_account = get_ending_account_number(starting_account, len(query_ids))
 
-        # Load or generate user agents for the required accounts
         user_agents = load_user_agents(query_ids)
 
         durov_choices = []
@@ -665,8 +662,8 @@ def main():
         log_message(f"Total Balance of all accounts: {sum(total_balance)}", Fore.YELLOW)
         log_message("All accounts processed. Starting random timer for the next cycle.", Fore.CYAN)
 
-        clear_error_log()  # Clear the error log at the end
-        clear_retry_log()  # Clear the retry log at the end
+        clear_error_log()
+        clear_retry_log()
 
         random_timer = random.randint(8 * 60 * 60, 9 * 60 * 60)
         countdown_timer(random_timer)
