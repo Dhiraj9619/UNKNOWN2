@@ -131,14 +131,14 @@ def check_user_details(user_id, access_token, proxies=None):
 
 async def coins(token: str, reward_coins: int = 915, proxies=None, user_agent=None):
     print("Completing... Hold")
-    single_line_progress_bar(60, f"{Fore.GREEN + Style.BRIGHT}Hold Bonus Claim: {reward_coins} [✓]{Style.RESET_ALL}")
+    single_line_progress_bar(62, f"{Fore.GREEN + Style.BRIGHT}Hold Bonus Claim: {reward_coins} [✓]{Style.RESET_ALL}")
 
 async def daily_hold(token: str, proxies=None, user_agent=None):
     await coins(token=token, proxies=proxies, user_agent=user_agent)
 
 async def daily_swipe(access_token, proxies=None, user_agent=None):
     print("Completing... Swipe")
-    single_line_progress_bar(60, f"{Fore.GREEN + Style.BRIGHT}Swipe Bonus claimed: 1000+ [✓]{Style.RESET_ALL}")
+    single_line_progress_bar(61, f"{Fore.GREEN + Style.BRIGHT}Swipe Bonus claimed: 1000+ [✓]{Style.RESET_ALL}")
 
 async def perform_daily_spin(access_token, proxies=None, user_agent=None):
     print("Completing... Spin")
@@ -158,12 +158,21 @@ async def perform_daily_spin(access_token, proxies=None, user_agent=None):
                     response.raise_for_status()
                     spin_data = await response.json()
                     reward = spin_data.get('rating_award', 0)
-                    single_line_progress_bar(10, f"{Fore.GREEN + Style.BRIGHT}Daily Spin Reward claimed: {reward} [✓]{Style.RESET_ALL}")
+                    single_line_progress_bar(11, f"{Fore.GREEN + Style.BRIGHT}Daily Spin Reward claimed: {reward} [✓]{Style.RESET_ALL}")
                     return response
         except aiohttp.ClientResponseError as e:
             log_error(f"Network error occurred while performing daily spin: {str(e)}. Retrying...")
             await asyncio.sleep(5)
 
+def random_delay_after_bonus():
+    delay = random.uniform(3, 4)
+    start_time = time.time()
+    while time.time() - start_time < delay:
+        remaining_time = delay - (time.time() - start_time)
+        print(f"\rWaiting for {remaining_time:.2f} seconds...", end="")
+        time.sleep(0.1)
+    print("\r" + " " * 30, end="\r")  # Clear the line after the delay ends
+ 
 def perform_daily(access_token, proxies=None, user_agent=None):
     url_daily = "https://major.glados.app/api/user-visits/visit/"
     headers_daily = {
@@ -183,6 +192,9 @@ def perform_daily(access_token, proxies=None, user_agent=None):
                     log_message("Daily Bonus Claimed successfully [✓]", Fore.GREEN + Style.BRIGHT)
                 else:
                     log_message("Daily Bonus Already Claimed [×]", Fore.RED + Style.BRIGHT)
+                
+                random_delay_after_bonus()
+                
             return response
         except requests.exceptions.RequestException as e:
             log_error(f"Network error occurred while performing daily visit: {str(e)}. Retrying...")
