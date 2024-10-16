@@ -655,6 +655,11 @@ def main():
         completed_tasks = set()
 
         for index, query_id in enumerate(query_ids[starting_account:ending_account], start=starting_account):
+            # Add a random delay between 3 to 5 seconds before processing the next account
+            wait_time = random.randint(3, 5)
+            log_message(f"Waiting for {wait_time} seconds before processing the next account...", Fore.CYAN)
+            time.sleep(wait_time)
+
             process_account(query_id, proxies_list, auto_task, auto_play_game, play_durov, durov_choices, account_proxies, total_balance, user_agents, index, proxy_usage, other_tasks_enabled, completed_tasks)
 
         if use_proxy:
