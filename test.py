@@ -1,11 +1,14 @@
 import sys
+import asyncio
+
+if sys.platform.startswith('win'):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 import time
 import random
 import requests
 import urllib.parse
 import json
 import os
-import asyncio
 import aiohttp
 from colorama import init, Fore, Style
 from collections import defaultdict
@@ -237,7 +240,7 @@ async def daily_swipe(access_token, proxies=None, user_agent=None):
                 log_message("Daily Swipe Balance Already Claimed [×]", Fore.RED)
                 return response
             
-            single_line_progress_bar(60, "Completing Swipe...")
+            single_line_progress_bar(60, "Completing Swipe...")  # Progress bar before the actual claim
 
             if response.status_code == 201:
                 single_line_progress_bar(2, Fore.GREEN + "Swipe Bonus claimed successfully [✓]" + Style.RESET_ALL)
@@ -523,8 +526,13 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
             durov(access_token, *durov_choices, proxies=proxy, user_agent=user_agent)
 
         if auto_play_game:
+            # Execute daily_hold and wait for it to finish
             asyncio.run(daily_hold(token=access_token, proxies=proxy, user_agent=user_agent))
-            asyncio.run(daily_swipe(access_token, proxies=proxy, user_agent=user_agent))
+            # Execute daily_swipe and check if it's already claimed
+            swipe_response = asyncio.run(daily_swipe(access_token, proxies=proxy, user_agent=user_agent))
+            if swipe_response.status_code != 400:
+                single_line_progress_bar(60, "Completing Swipe...")  # Only show if not already claimed
+            # Finally, perform the daily spin
             perform_daily_spin(access_token, proxies=proxy, user_agent=user_agent)
 
         if auto_task:
@@ -601,6 +609,10 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
         total_balance.append(final_balance)
     log_message("")
 
+    # Add a random wait time of 3-5 seconds after processing each account with countdown
+    delay = random.randint(3, 5)
+    countdown_timer(delay)
+
 def main():
     try:
         use_proxy = get_yes_no_input("Do you want to use a proxy? (y/n): ")
@@ -655,11 +667,6 @@ def main():
         completed_tasks = set()
 
         for index, query_id in enumerate(query_ids[starting_account:ending_account], start=starting_account):
-            # Add a random delay between 3 to 5 seconds before processing the next account
-            wait_time = random.randint(3, 5)
-            log_message(f"Waiting for {wait_time} seconds before processing the next account...", Fore.CYAN)
-            time.sleep(wait_time)
-
             process_account(query_id, proxies_list, auto_task, auto_play_game, play_durov, durov_choices, account_proxies, total_balance, user_agents, index, proxy_usage, other_tasks_enabled, completed_tasks)
 
         if use_proxy:
