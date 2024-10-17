@@ -1,14 +1,11 @@
 import sys
-import asyncio
-
-if sys.platform.startswith('win'):
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 import time
 import random
 import requests
 import urllib.parse
 import json
 import os
+import asyncio
 import aiohttp
 from colorama import init, Fore, Style
 from collections import defaultdict
@@ -240,7 +237,7 @@ async def daily_swipe(access_token, proxies=None, user_agent=None):
                 log_message("Daily Swipe Balance Already Claimed [×]", Fore.RED)
                 return response
             
-            single_line_progress_bar(60, "Completing Swipe...")  # Progress bar before the actual claim
+            single_line_progress_bar(60, "Completing Swipe...")
 
             if response.status_code == 201:
                 single_line_progress_bar(2, Fore.GREEN + "Swipe Bonus claimed successfully [✓]" + Style.RESET_ALL)
@@ -402,7 +399,7 @@ def countdown_timer(seconds):
 def random_delay():
     delay = random.randint(1, 2)
     countdown_timer(delay)
-
+    
 def graceful_exit():
     print("\n" + Fore.YELLOW + "Exiting gracefully... Please wait.")
     time.sleep(2)
@@ -526,14 +523,13 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
             durov(access_token, *durov_choices, proxies=proxy, user_agent=user_agent)
 
         if auto_play_game:
-            # Execute daily_hold and wait for it to finish
-            asyncio.run(daily_hold(token=access_token, proxies=proxy, user_agent=user_agent))
-            # Execute daily_swipe and check if it's already claimed
-            swipe_response = asyncio.run(daily_swipe(access_token, proxies=proxy, user_agent=user_agent))
-            if swipe_response.status_code != 400:
-                single_line_progress_bar(60, "Completing Swipe...")  # Only show if not already claimed
-            # Finally, perform the daily spin
-            perform_daily_spin(access_token, proxies=proxy, user_agent=user_agent)
+            game_functions = [daily_hold, perform_daily_spin, daily_swipe]
+            random.shuffle(game_functions)
+            for game_function in game_functions:
+                if asyncio.iscoroutinefunction(game_function):
+                    asyncio.run(game_function(access_token, proxies=proxy, user_agent=user_agent))
+                else:
+                    game_function(access_token, proxies=proxy, user_agent=user_agent)
 
         if auto_task:
             tasks = asyncio.run(fetch_tasks(access_token, is_daily=True, proxies=proxy, user_agent=user_agent))
@@ -543,6 +539,7 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
                 5: "TON Channels"
             }
             if tasks:
+                random.shuffle(tasks)
                 for task in tasks:
                     task_id = task.get('id')
                     task_name = specific_tasks.get(task_id, f'Task {task_id}')
@@ -586,6 +583,7 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
             for type in ['true', 'false']:
                 tasks = asyncio.run(fetch_tasks(access_token, is_daily=type, proxies=proxy, user_agent=user_agent))
                 if tasks is not None:
+                    random.shuffle(tasks)
                     for task in tasks:
                         task_title = task['title'].rstrip('#')
                         if task_title in excluded_tasks:
@@ -609,9 +607,8 @@ def process_account(query_id, proxies_list, auto_task, auto_play_game, durov_ena
         total_balance.append(final_balance)
     log_message("")
 
-    # Add a random wait time of 3-5 seconds after processing each account with countdown
-    delay = random.randint(3, 5)
-    countdown_timer(delay)
+    # Add a random delay of 3 to 5  seconds after processing each account
+    time.sleep(random.randint(3, 5))
 
 def main():
     try:
